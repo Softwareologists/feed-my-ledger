@@ -1,5 +1,7 @@
 //! Adapters for interacting with cloud spreadsheet services.
 
+pub mod auth;
+
 use std::collections::HashMap;
 
 /// Represents errors that can occur when interacting with a spreadsheet
