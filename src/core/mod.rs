@@ -10,7 +10,10 @@ pub struct Record {
 impl Record {
     /// Creates a new record with the provided id and data.
     pub fn new(id: u64, data: impl Into<String>) -> Self {
-        Self { id, data: data.into() }
+        Self {
+            id,
+            data: data.into(),
+        }
     }
 }
 
