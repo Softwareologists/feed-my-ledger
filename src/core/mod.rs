@@ -145,6 +145,43 @@ impl Ledger {
             .ok_or(LedgerError::RecordNotFound)
     }
 
+    /// Applies an adjustment to an existing record by creating a new record
+    /// referencing the original. The provided `adjustment` record will have its
+    /// `reference_id` field overwritten with `original_id`.
+    pub fn apply_adjustment(
+        &mut self,
+        original_id: Uuid,
+        mut adjustment: Record,
+    ) -> Result<(), LedgerError> {
+        // Ensure the original record exists before creating the adjustment.
+        self.get_record(original_id)?;
+        adjustment.reference_id = Some(original_id);
+        self.commit(adjustment);
+        Ok(())
+    }
+
+    /// Returns all adjustments referencing the provided record ID, following
+    /// the chain of adjustments recursively. The results are ordered by
+    /// timestamp from oldest to newest.
+    pub fn adjustment_history(&self, id: Uuid) -> Vec<&Record> {
+        let mut history = Vec::new();
+        let mut queue = vec![id];
+
+        while let Some(current) = queue.pop() {
+            for r in self
+                .records
+                .iter()
+                .filter(|r| r.reference_id == Some(current))
+            {
+                history.push(r);
+                queue.push(r.id);
+            }
+        }
+
+        history.sort_by_key(|r| r.timestamp);
+        history
+    }
+
     /// Attempts to modify an existing record. Always fails because records are immutable.
     pub fn modify_record(&mut self, _id: Uuid, _record: Record) -> Result<(), LedgerError> {
         Err(LedgerError::ImmutableRecord)
