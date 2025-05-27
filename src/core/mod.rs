@@ -69,6 +69,9 @@ mod tests {
         ledger.append(Record::new(serde_json::json!("second"), None));
 
         let data: Vec<_> = ledger.records().map(|r| r.data.clone()).collect();
-        assert_eq!(data, vec![serde_json::json!("first"), serde_json::json!("second")]);
+        assert_eq!(
+            data,
+            vec![serde_json::json!("first"), serde_json::json!("second")]
+        );
     }
 }
