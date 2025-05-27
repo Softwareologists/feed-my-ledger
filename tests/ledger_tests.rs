@@ -118,3 +118,79 @@ fn committed_records_are_immutable() {
     let err = ledger.delete_record(id).unwrap_err();
     assert_eq!(err, LedgerError::ImmutableRecord);
 }
+
+#[test]
+fn adjustment_chaining() {
+    let mut ledger = Ledger::default();
+
+    let original = Record::new(
+        "orig".into(),
+        "cash".into(),
+        "revenue".into(),
+        10.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    let orig_id = original.id;
+    ledger.commit(original);
+
+    let adj1 = Record::new(
+        "adj1".into(),
+        "revenue".into(),
+        "cash".into(),
+        2.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    let adj1_id = adj1.id;
+    ledger.apply_adjustment(orig_id, adj1).unwrap();
+
+    let adj2 = Record::new(
+        "adj2".into(),
+        "cash".into(),
+        "revenue".into(),
+        1.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    let adj2_id = adj2.id;
+    ledger.apply_adjustment(adj1_id, adj2).unwrap();
+
+    let history = ledger.adjustment_history(orig_id);
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].reference_id, Some(orig_id));
+    assert_eq!(history[1].reference_id, Some(adj1_id));
+
+    let history_adj1 = ledger.adjustment_history(adj1_id);
+    assert_eq!(history_adj1.len(), 1);
+    assert_eq!(history_adj1[0].id, adj2_id);
+}
+
+#[test]
+fn adjustment_requires_existing_record() {
+    let mut ledger = Ledger::default();
+    let adj = Record::new(
+        "adj".into(),
+        "cash".into(),
+        "revenue".into(),
+        1.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+
+    let missing = Uuid::new_v4();
+    let err = ledger.apply_adjustment(missing, adj).unwrap_err();
+    assert_eq!(err, LedgerError::RecordNotFound);
+}
