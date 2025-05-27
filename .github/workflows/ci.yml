@@ -5,12 +5,16 @@ on:
     branches: [ main ]
   pull_request:
 
+# Make sure CI fails on all warnings, including Clippy lints
+env:
+  RUSTFLAGS: "-Dwarnings"
+  
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/rustfmt@v1.1.1
         with:
           profile: minimal
           toolchain: stable
