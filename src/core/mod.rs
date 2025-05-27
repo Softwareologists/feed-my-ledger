@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn append_and_iterate() {
         let mut ledger = Ledger::default();
-        ledger.append(
+        ledger.commit(
             Record::new(
                 "first".into(),
                 "cash".into(),
@@ -176,7 +176,7 @@ mod tests {
             )
             .unwrap(),
         );
-        ledger.append(
+        ledger.commit(
             Record::new(
                 "second".into(),
                 "cash".into(),
