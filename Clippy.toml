@@ -1,1 +1,1 @@
-warnings-as-denied = ["clippy::all"]
+avoid-breaking-exported-api = true

@@ -2,31 +2,85 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use uuid::Uuid;
 
+/// Errors that can occur when creating a [`Record`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecordError {
+    /// The debit and credit accounts are identical.
+    SameAccount,
+    /// The amount provided is not positive.
+    NonPositiveAmount,
+}
+
+impl std::fmt::Display for RecordError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RecordError::SameAccount => write!(f, "debit and credit accounts must differ"),
+            RecordError::NonPositiveAmount => write!(f, "amount must be positive"),
+        }
+    }
+}
+
+impl std::error::Error for RecordError {}
+
 /// Represents a record stored in the database.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Record {
     /// Unique identifier for this record.
     pub id: Uuid,
     /// Time at which the record was created.
     pub timestamp: DateTime<Utc>,
-    /// Arbitrary structured payload stored in the ledger.
-    pub data: Value,
+    /// Description or memo for the transaction.
+    pub description: String,
+    /// Account that is debited.
+    pub debit_account: String,
+    /// Account that is credited.
+    pub credit_account: String,
+    /// Monetary amount of the transaction.
+    pub amount: f64,
+    /// Currency code for the amount (e.g., USD).
+    pub currency: String,
     /// Optional reference to another record when creating adjustments.
-    pub reference: Option<Uuid>,
+    pub reference_id: Option<Uuid>,
+    /// Optional external reference such as invoice or receipt number.
+    pub external_reference: Option<String>,
+    /// Tags for categorizing the transaction.
+    pub tags: Vec<String>,
 }
 
 impl Record {
-    /// Creates a new record with the provided data and optional reference.
-    pub fn new(data: Value, reference: Option<Uuid>) -> Self {
-        Self {
+    /// Creates a new record after validating the accounts and amount.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        description: String,
+        debit_account: String,
+        credit_account: String,
+        amount: f64,
+        currency: String,
+        reference_id: Option<Uuid>,
+        external_reference: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<Self, RecordError> {
+        if debit_account == credit_account {
+            return Err(RecordError::SameAccount);
+        }
+        if amount <= 0.0 {
+            return Err(RecordError::NonPositiveAmount);
+        }
+
+        Ok(Self {
             id: Uuid::new_v4(),
             timestamp: Utc::now(),
-            data,
-            reference,
-        }
+            description,
+            debit_account,
+            credit_account,
+            amount,
+            currency,
+            reference_id,
+            external_reference,
+            tags,
+        })
     }
 
     /// Serializes the record to a JSON string.
@@ -65,13 +119,34 @@ mod tests {
     #[test]
     fn append_and_iterate() {
         let mut ledger = Ledger::default();
-        ledger.append(Record::new(serde_json::json!("first"), None));
-        ledger.append(Record::new(serde_json::json!("second"), None));
-
-        let data: Vec<_> = ledger.records().map(|r| r.data.clone()).collect();
-        assert_eq!(
-            data,
-            vec![serde_json::json!("first"), serde_json::json!("second")]
+        ledger.append(
+            Record::new(
+                "first".into(),
+                "cash".into(),
+                "revenue".into(),
+                1.0,
+                "USD".into(),
+                None,
+                None,
+                vec![],
+            )
+            .unwrap(),
         );
+        ledger.append(
+            Record::new(
+                "second".into(),
+                "cash".into(),
+                "revenue".into(),
+                2.0,
+                "USD".into(),
+                None,
+                None,
+                vec![],
+            )
+            .unwrap(),
+        );
+
+        let amounts: Vec<_> = ledger.records().map(|r| r.amount).collect();
+        assert_eq!(amounts, vec![1.0, 2.0]);
     }
 }

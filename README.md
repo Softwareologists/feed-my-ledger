@@ -23,12 +23,22 @@ rusty-ledger = "0.1.0"
 
 ## Usage
 ```rust
-use rusty_ledger::{Client, Record};
+use rusty_ledger::core::{Ledger, Record};
 
 fn main() {
-    let client = Client::new("path_to_credentials.json");
-    let record = Record::new("Sample data");
-    client.commit(record);
+    let mut ledger = Ledger::default();
+    let record = Record::new(
+        "Sample transaction".into(),
+        "cash".into(),
+        "revenue".into(),
+        100.0,
+        "USD".into(),
+        None,
+        None,
+        vec!["example".into()],
+    )
+    .unwrap();
+    ledger.append(record);
 }
 ```
 
