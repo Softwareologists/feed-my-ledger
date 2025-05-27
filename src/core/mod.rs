@@ -25,7 +25,7 @@ impl std::fmt::Display for RecordError {
 impl std::error::Error for RecordError {}
 
 /// Represents a record stored in the database.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Record {
     /// Unique identifier for this record.
     pub id: Uuid,
