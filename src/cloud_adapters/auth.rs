@@ -79,7 +79,7 @@ impl TokenStore for MemoryTokenStore {
 
 /// Manages acquiring and refreshing tokens using a provider and store.
 pub struct AuthManager<P: AuthProvider, S: TokenStore> {
-    provider: P,
+    pub provider: P,
     store: S,
 }
 

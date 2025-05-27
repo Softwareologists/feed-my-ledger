@@ -1,6 +1,6 @@
 use chrono::{Duration, Utc};
 use rusty_ledger::cloud_adapters::auth::{
-    AuthError, AuthManager, AuthProvider, MemoryTokenStore, OAuth2Token,
+    AuthError, AuthManager, AuthProvider, MemoryTokenStore, OAuth2Token, TokenStore,
 };
 
 #[derive(Default)]
