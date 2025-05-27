@@ -65,8 +65,8 @@ To set up the development environment:
 2. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/immutable-sheet-db.git
-   cd immutable-sheet-db
+   git clone https://github.com/yourusername/rusty-ledger.git
+   cd rusty-ledger
    ```
 
 3. Build the project:
