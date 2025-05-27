@@ -61,21 +61,25 @@ Please ensure your pull request:
 To set up the development environment:
 
 1. Install [Rust](https://www.rust-lang.org/tools/install).
+2. Install formatting and linting tools:
+   ```bash
+   rustup component add rustfmt clippy
+   ```
 
-2. Clone the repository:
+3. Clone the repository:
 
    ```bash
    git clone https://github.com/yourusername/immutable-sheet-db.git
    cd immutable-sheet-db
    ```
 
-3. Build the project:
+4. Build the project:
 
    ```bash
    cargo build
    ```
 
-4. Run tests:
+5. Run tests:
 
    ```bash
    cargo test
@@ -83,7 +87,7 @@ To set up the development environment:
 
 ## Style Guide
 
-We follow Rust's standard formatting conventions. Please run `cargo fmt` before committing your changes.
+We follow Rust's standard formatting conventions. Please run `cargo fmt` and `cargo clippy -- -D warnings` before committing your changes.
 
 ## Commit Messages
 

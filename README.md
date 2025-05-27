@@ -13,6 +13,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 - Rust (version 1.60 or higher)
 - Google Cloud account with Sheets API enabled
 - OAuth2 credentials for Google Sheets API
+- Rustfmt and Clippy (install with `rustup component add rustfmt clippy`)
 
 ## Installation
 Add the following to your Cargo.toml:
