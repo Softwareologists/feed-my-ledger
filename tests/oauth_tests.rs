@@ -42,7 +42,7 @@ fn acquire_token_when_missing() {
 
 #[test]
 fn refresh_expired_token() {
-    let mut provider = MockProvider::default();
+    let provider = MockProvider::default();
     let mut store = MemoryTokenStore::new();
     store.save_token(
         "user",
