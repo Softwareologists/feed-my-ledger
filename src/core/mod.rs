@@ -94,6 +94,26 @@ impl Record {
     }
 }
 
+/// Errors that can occur when interacting with the [`Ledger`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LedgerError {
+    /// The requested record was not found.
+    RecordNotFound,
+    /// Records are immutable once committed and cannot be modified or deleted.
+    ImmutableRecord,
+}
+
+impl std::fmt::Display for LedgerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LedgerError::RecordNotFound => write!(f, "record not found"),
+            LedgerError::ImmutableRecord => write!(f, "records are immutable"),
+        }
+    }
+}
+
+impl std::error::Error for LedgerError {}
+
 /// In-memory append-only store of records.
 #[derive(Default)]
 pub struct Ledger {
@@ -101,14 +121,38 @@ pub struct Ledger {
 }
 
 impl Ledger {
-    /// Appends a record to the ledger.
-    pub fn append(&mut self, record: Record) {
+    /// Commits a record to the ledger.
+    pub fn commit(&mut self, record: Record) {
         self.records.push(record);
+    }
+
+    /// Appends a record to the ledger.
+    #[deprecated(note = "use `commit` instead")]
+    pub fn append(&mut self, record: Record) {
+        self.commit(record);
     }
 
     /// Returns an iterator over all records.
     pub fn records(&self) -> impl Iterator<Item = &Record> {
         self.records.iter()
+    }
+
+    /// Retrieves a record by its unique identifier.
+    pub fn get_record(&self, id: Uuid) -> Result<&Record, LedgerError> {
+        self.records
+            .iter()
+            .find(|r| r.id == id)
+            .ok_or(LedgerError::RecordNotFound)
+    }
+
+    /// Attempts to modify an existing record. Always fails because records are immutable.
+    pub fn modify_record(&mut self, _id: Uuid, _record: Record) -> Result<(), LedgerError> {
+        Err(LedgerError::ImmutableRecord)
+    }
+
+    /// Attempts to delete an existing record. Always fails because records are immutable.
+    pub fn delete_record(&mut self, _id: Uuid) -> Result<(), LedgerError> {
+        Err(LedgerError::ImmutableRecord)
     }
 }
 
