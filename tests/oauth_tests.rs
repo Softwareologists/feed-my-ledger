@@ -48,7 +48,7 @@ fn refresh_expired_token() {
         "user",
         OAuth2Token {
             access_token: "old".into(),
-            refresh_token: "oldrefresh".into(),
+            refresh_token: "oldRefresh".into(),
             expires_at: Utc::now() - Duration::hours(1),
         },
     );

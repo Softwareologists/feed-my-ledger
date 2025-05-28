@@ -4,6 +4,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub mod sharing;
+pub use sharing::{AccessError, Permission, SharedLedger};
+
 /// Errors that can occur when creating a [`Record`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordError {
