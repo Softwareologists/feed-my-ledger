@@ -1,4 +1,4 @@
-use rusty_ledger::cloud_adapters::{GoogleSheetsAdapter};
+use rusty_ledger::cloud_adapters::GoogleSheetsAdapter;
 use rusty_ledger::core::{AccessError, Permission, Record, SharedLedger};
 
 #[test]
