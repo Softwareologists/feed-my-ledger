@@ -7,6 +7,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 - Cloud Service Integration: Supports integration with services like Google Sheets.
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
+- Resilient API Calls: Automatically retries transient errors with exponential backoff.
 
 # 🚀 Getting Started
 ## Prerequisites
