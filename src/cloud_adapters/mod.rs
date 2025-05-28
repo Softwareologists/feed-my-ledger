@@ -1,6 +1,8 @@
 //! Adapters for interacting with cloud spreadsheet services.
 
 pub mod auth;
+pub mod retry;
+pub use retry::RetryingService;
 
 use std::collections::HashMap;
 
@@ -14,6 +16,10 @@ pub enum SpreadsheetError {
     RowNotFound,
     /// Failed to share the sheet with the given recipient.
     ShareFailed,
+    /// A temporary error that may succeed when retried.
+    Transient(String),
+    /// A non-recoverable error returned by the service.
+    Permanent(String),
     /// An unspecified error occurred.
     Unknown,
 }
@@ -24,12 +30,23 @@ impl std::fmt::Display for SpreadsheetError {
             SpreadsheetError::SheetNotFound => write!(f, "sheet not found"),
             SpreadsheetError::RowNotFound => write!(f, "row not found"),
             SpreadsheetError::ShareFailed => write!(f, "sharing failed"),
+            SpreadsheetError::Transient(msg) => {
+                write!(f, "temporary service error: {msg}. Please retry")
+            }
+            SpreadsheetError::Permanent(msg) => write!(f, "{msg}"),
             SpreadsheetError::Unknown => write!(f, "unknown error"),
         }
     }
 }
 
 impl std::error::Error for SpreadsheetError {}
+
+impl SpreadsheetError {
+    /// Returns `true` if the error can be retried.
+    pub fn is_retryable(&self) -> bool {
+        matches!(self, SpreadsheetError::Transient(_))
+    }
+}
 
 /// Abstraction over cloud spreadsheet services.
 pub trait CloudSpreadsheetService {
