@@ -4,7 +4,7 @@ use rusty_ledger::core::{AccessError, Permission, Record, SharedLedger};
 #[test]
 fn reader_cannot_write() {
     let adapter = GoogleSheetsAdapter::new();
-    let mut ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
+    let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
     ledger
         .share_with("reader@example.com", Permission::Read)
         .unwrap();
@@ -28,7 +28,7 @@ fn reader_cannot_write() {
 #[test]
 fn writer_can_write() {
     let adapter = GoogleSheetsAdapter::new();
-    let mut ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
+    let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
     ledger
         .share_with("writer@example.com", Permission::Write)
         .unwrap();
@@ -47,13 +47,13 @@ fn writer_can_write() {
 
     ledger.commit("writer@example.com", record).unwrap();
 
-    assert_eq!(ledger.records("writer@example.com").unwrap().count(), 1);
+    assert_eq!(ledger.records("writer@example.com").unwrap().len(), 1);
 }
 
 #[test]
 fn access_is_required_for_reads() {
     let adapter = GoogleSheetsAdapter::new();
-    let mut ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
+    let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
 
     let record = Record::new(
         "desc".into(),

@@ -72,7 +72,7 @@ impl CloudSpreadsheetService for CountingAdapter {
 fn commit_invokes_append_row() {
     let counter = Rc::new(RefCell::new(0));
     let adapter = CountingAdapter::new(Rc::clone(&counter));
-    let mut ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
+    let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
 
     let record = Record::new(
         "desc".into(),
@@ -137,7 +137,7 @@ impl CloudSpreadsheetService for FailingShare {
 #[test]
 fn share_with_returns_access_error() {
     let adapter = FailingShare::default();
-    let mut ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
+    let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
     let err = ledger
         .share_with("user@example.com", Permission::Read)
         .unwrap_err();
