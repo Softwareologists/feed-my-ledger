@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// OAuth2 token representation containing expiry information.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,6 +72,41 @@ impl MemoryTokenStore {
 impl TokenStore for MemoryTokenStore {
     fn save_token(&mut self, user_id: &str, token: OAuth2Token) {
         self.tokens.insert(user_id.to_string(), token);
+    }
+
+    fn get_token(&self, user_id: &str) -> Option<OAuth2Token> {
+        self.tokens.get(user_id).cloned()
+    }
+}
+
+/// File-based token storage using JSON serialization.
+pub struct FileTokenStore {
+    path: PathBuf,
+    tokens: HashMap<String, OAuth2Token>,
+}
+
+impl FileTokenStore {
+    /// Create a store backed by the given file path. Existing data is loaded if available.
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        let path = path.into();
+        let tokens = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|data| serde_json::from_str(&data).ok())
+            .unwrap_or_default();
+        Self { path, tokens }
+    }
+
+    fn persist(&self) {
+        if let Ok(data) = serde_json::to_string(&self.tokens) {
+            let _ = std::fs::write(&self.path, data);
+        }
+    }
+}
+
+impl TokenStore for FileTokenStore {
+    fn save_token(&mut self, user_id: &str, token: OAuth2Token) {
+        self.tokens.insert(user_id.to_string(), token);
+        self.persist();
     }
 
     fn get_token(&self, user_id: &str) -> Option<OAuth2Token> {
