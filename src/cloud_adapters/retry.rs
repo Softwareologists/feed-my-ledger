@@ -55,6 +55,14 @@ impl<S: CloudSpreadsheetService> CloudSpreadsheetService for RetryingService<S> 
         self.with_retry(|inner| inner.append_row(sheet_id, values.clone()))
     }
 
+    fn append_rows(
+        &mut self,
+        sheet_id: &str,
+        rows: Vec<Vec<String>>,
+    ) -> Result<(), SpreadsheetError> {
+        self.with_retry(|inner| inner.append_rows(sheet_id, rows.clone()))
+    }
+
     fn read_row(&self, sheet_id: &str, index: usize) -> Result<Vec<String>, SpreadsheetError> {
         self.with_retry(|inner| inner.read_row(sheet_id, index))
     }

@@ -82,7 +82,7 @@ fn propagate_refresh_error() {
             expires_at: Utc::now() - Duration::hours(1),
         },
     );
-    let provider = FailingRefresh::default();
+    let provider = FailingRefresh;
     let mut manager = AuthManager::new(provider, store);
     let err = manager.authenticate("user").unwrap_err();
     assert_eq!(err, AuthError::RefreshFailed);
