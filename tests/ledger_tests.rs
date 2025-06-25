@@ -1,4 +1,4 @@
-use rusty_ledger::core::{Ledger, LedgerError, Record};
+use rusty_ledger::core::{Ledger, LedgerError, Record, RecordError};
 use uuid::Uuid;
 
 #[test]
@@ -193,4 +193,49 @@ fn adjustment_requires_existing_record() {
     let missing = Uuid::new_v4();
     let err = ledger.apply_adjustment(missing, adj).unwrap_err();
     assert_eq!(err, LedgerError::RecordNotFound);
+}
+
+#[test]
+fn record_creation_rejects_identical_accounts() {
+    let err = Record::new(
+        "desc".into(),
+        "cash".into(),
+        "cash".into(),
+        1.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap_err();
+    assert_eq!(err, RecordError::SameAccount);
+}
+
+#[test]
+fn record_creation_rejects_nonpositive_amounts() {
+    let zero_err = Record::new(
+        "zero".into(),
+        "cash".into(),
+        "revenue".into(),
+        0.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap_err();
+    assert_eq!(zero_err, RecordError::NonPositiveAmount);
+
+    let negative_err = Record::new(
+        "neg".into(),
+        "cash".into(),
+        "revenue".into(),
+        -1.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap_err();
+    assert_eq!(negative_err, RecordError::NonPositiveAmount);
 }
