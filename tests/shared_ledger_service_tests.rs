@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, GoogleSheetsAdapter};
-use rusty_ledger::core::{Record, SharedLedger};
+use rusty_ledger::core::{AccessError, Permission, Record, SharedLedger};
 
 struct CountingAdapter {
     inner: GoogleSheetsAdapter,
@@ -89,4 +89,116 @@ fn commit_invokes_append_row() {
     ledger.commit("owner@example.com", record).unwrap();
 
     assert_eq!(*counter.borrow(), 1);
+}
+
+#[derive(Default)]
+struct FailingShare;
+
+impl CloudSpreadsheetService for FailingShare {
+    fn create_sheet(
+        &mut self,
+        _title: &str,
+    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        Ok("sheet1".into())
+    }
+
+    fn append_row(
+        &mut self,
+        _sheet_id: &str,
+        _values: Vec<String>,
+    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn read_row(
+        &self,
+        _sheet_id: &str,
+        _index: usize,
+    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn list_rows(
+        &self,
+        _sheet_id: &str,
+    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn share_sheet(
+        &self,
+        _sheet_id: &str,
+        _email: &str,
+    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+        Err(rusty_ledger::cloud_adapters::SpreadsheetError::ShareFailed)
+    }
+}
+
+#[test]
+fn share_with_returns_access_error() {
+    let adapter = FailingShare::default();
+    let mut ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
+    let err = ledger
+        .share_with("user@example.com", Permission::Read)
+        .unwrap_err();
+    assert_eq!(err, AccessError::ShareFailed);
+}
+
+#[derive(Default)]
+struct FailingCreate;
+
+impl CloudSpreadsheetService for FailingCreate {
+    fn create_sheet(
+        &mut self,
+        _title: &str,
+    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        Err(rusty_ledger::cloud_adapters::SpreadsheetError::Permanent(
+            "boom".into(),
+        ))
+    }
+
+    fn append_row(
+        &mut self,
+        _sheet_id: &str,
+        _values: Vec<String>,
+    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn read_row(
+        &self,
+        _sheet_id: &str,
+        _index: usize,
+    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn list_rows(
+        &self,
+        _sheet_id: &str,
+    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn share_sheet(
+        &self,
+        _sheet_id: &str,
+        _email: &str,
+    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+}
+
+#[test]
+fn new_propagates_spreadsheet_error() {
+    let adapter = FailingCreate::default();
+    let res = SharedLedger::new(adapter, "owner@example.com");
+    let err = match res {
+        Ok(_) => panic!("expected error"),
+        Err(e) => e,
+    };
+    assert_eq!(
+        err,
+        rusty_ledger::cloud_adapters::SpreadsheetError::Permanent("boom".into())
+    );
 }
