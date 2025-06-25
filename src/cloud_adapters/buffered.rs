@@ -12,7 +12,7 @@ pub enum EvictionPolicy {
 }
 
 /// Wrapper that batches writes and caches read operations.
-pub struct BatchingCacheService<S> {
+pub struct BatchingCacheService<S: CloudSpreadsheetService> {
     inner: S,
     batch_size: usize,
     batches: RefCell<HashMap<String, Vec<Vec<String>>>>,
@@ -80,7 +80,7 @@ impl<S: CloudSpreadsheetService> BatchingCacheService<S> {
 
     fn cache_get(&self, sheet_id: &str, index: usize) -> Option<Vec<String>> {
         let key = (sheet_id.to_string(), index);
-        let mut cache = self.cache.borrow_mut();
+        let cache = self.cache.borrow();
         if let Some(val) = cache.get(&key).cloned() {
             if let EvictionPolicy::Lru(_cap) = self.cache_policy {
                 let mut order = self.order.borrow_mut();
