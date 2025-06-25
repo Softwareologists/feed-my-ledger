@@ -11,7 +11,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 
 # 🚀 Getting Started
 ## Prerequisites
-- Rust (version 1.60 or higher)
+- Rust (version 1.74 or higher)
 - Google Cloud account with Sheets API enabled
 - OAuth2 credentials for Google Sheets API
 
