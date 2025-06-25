@@ -1,5 +1,7 @@
-# rusty-ledger
+# Rusty Ledger (rusty-ledger)
 Rust-based library that enables applications to interact with cloud-based spreadsheet services (e.g., Google Sheets) as immutable, append-only databases. It ensures that once data is committed, it cannot be edited or deleted. Adjustments are made by appending new records, akin to double-entry bookkeeping.
+
+![rusty-ledger](https://github.com/user-attachments/assets/6c630732-3bc5-43ac-bcb7-ade199cefcc2)
 
 # 📦 Features
 - Immutable Data Entries: Once data is committed, it becomes read-only.
