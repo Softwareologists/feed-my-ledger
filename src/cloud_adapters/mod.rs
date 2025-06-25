@@ -3,6 +3,8 @@
 pub mod auth;
 pub mod retry;
 pub use retry::RetryingService;
+pub mod buffered;
+pub use buffered::{BatchingCacheService, EvictionPolicy};
 
 use std::collections::HashMap;
 
@@ -54,6 +56,18 @@ pub trait CloudSpreadsheetService {
     fn create_sheet(&mut self, title: &str) -> Result<String, SpreadsheetError>;
     /// Appends a row of data to the given spreadsheet.
     fn append_row(&mut self, sheet_id: &str, values: Vec<String>) -> Result<(), SpreadsheetError>;
+    /// Appends multiple rows of data to the given spreadsheet. The default
+    /// implementation calls [`append_row`] for each row.
+    fn append_rows(
+        &mut self,
+        sheet_id: &str,
+        rows: Vec<Vec<String>>,
+    ) -> Result<(), SpreadsheetError> {
+        for row in rows {
+            self.append_row(sheet_id, row)?;
+        }
+        Ok(())
+    }
     /// Reads a specific row from the spreadsheet.
     fn read_row(&self, sheet_id: &str, index: usize) -> Result<Vec<String>, SpreadsheetError>;
     /// Lists all rows from the spreadsheet.
@@ -91,6 +105,20 @@ impl CloudSpreadsheetService for GoogleSheetsAdapter {
         match self.sheets.get_mut(sheet_id) {
             Some(rows) => {
                 rows.push(values);
+                Ok(())
+            }
+            None => Err(SpreadsheetError::SheetNotFound),
+        }
+    }
+
+    fn append_rows(
+        &mut self,
+        sheet_id: &str,
+        rows: Vec<Vec<String>>,
+    ) -> Result<(), SpreadsheetError> {
+        match self.sheets.get_mut(sheet_id) {
+            Some(dest) => {
+                dest.extend(rows);
                 Ok(())
             }
             None => Err(SpreadsheetError::SheetNotFound),
