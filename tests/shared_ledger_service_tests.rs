@@ -136,7 +136,7 @@ impl CloudSpreadsheetService for FailingShare {
 
 #[test]
 fn share_with_returns_access_error() {
-    let adapter = FailingShare::default();
+    let adapter = FailingShare;
     let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
     let err = ledger
         .share_with("user@example.com", Permission::Read)
@@ -191,7 +191,7 @@ impl CloudSpreadsheetService for FailingCreate {
 
 #[test]
 fn new_propagates_spreadsheet_error() {
-    let adapter = FailingCreate::default();
+    let adapter = FailingCreate;
     let res = SharedLedger::new(adapter, "owner@example.com");
     let err = match res {
         Ok(_) => panic!("expected error"),
