@@ -57,6 +57,9 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
 
     pub fn commit(&mut self, user: &str, record: Record) -> Result<(), AccessError> {
         self.check(user, Permission::Write)?;
+        self.service
+            .append_row(&self.sheet_id, record.to_row())
+            .map_err(|_| AccessError::ShareFailed)?;
         self.ledger.commit(record);
         Ok(())
     }

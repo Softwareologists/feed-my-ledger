@@ -95,6 +95,24 @@ impl Record {
     pub fn from_json(input: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(input)
     }
+
+    /// Converts the record into a row for spreadsheet storage.
+    pub fn to_row(&self) -> Vec<String> {
+        vec![
+            self.id.to_string(),
+            self.timestamp.to_rfc3339(),
+            self.description.clone(),
+            self.debit_account.clone(),
+            self.credit_account.clone(),
+            self.amount.to_string(),
+            self.currency.clone(),
+            self.reference_id
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
+            self.external_reference.clone().unwrap_or_default(),
+            self.tags.join(","),
+        ]
+    }
 }
 
 /// Errors that can occur when interacting with the [`Ledger`].
