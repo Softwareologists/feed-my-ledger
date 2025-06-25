@@ -1,5 +1,5 @@
 use rusty_ledger::cloud_adapters::{
-    CloudSpreadsheetService, GoogleSheetsAdapter, SpreadsheetError,
+    CloudSpreadsheetService, GoogleSheets4Adapter, GoogleSheetsAdapter, SpreadsheetError,
 };
 
 #[test]
@@ -42,4 +42,10 @@ fn sharing_nonexistent_sheet_fails() {
         .share_sheet("missing", "user@example.com")
         .unwrap_err();
     assert_eq!(err, SpreadsheetError::ShareFailed);
+}
+
+#[test]
+fn google_sheets4_adapter_is_service() {
+    fn assert_impl<T: CloudSpreadsheetService>() {}
+    assert_impl::<GoogleSheets4Adapter>();
 }

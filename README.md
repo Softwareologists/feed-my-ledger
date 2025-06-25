@@ -43,6 +43,39 @@ fn main() {
 }
 ```
 
+To work with a live Google Sheet, construct a `GoogleSheets4Adapter` using the
+`google-sheets4` crate:
+
+```rust,no_run
+use rusty_ledger::cloud_adapters::{GoogleSheets4Adapter, HyperConnector};
+use google_sheets4::{hyper_rustls, hyper_util, yup_oauth2, Sheets};
+
+async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    let secret = yup_oauth2::read_application_secret("client_secret.json").await?;
+    let auth = yup_oauth2::InstalledFlowAuthenticator::builder(
+        secret,
+        yup_oauth2::InstalledFlowReturnMethod::Interactive,
+    )
+    .build()
+    .await?;
+
+    let connector: HyperConnector = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_native_roots()
+        .https_or_http()
+        .enable_http1()
+        .build();
+    let client = hyper_util::client::legacy::Client::builder(
+        hyper_util::rt::TokioExecutor::new(),
+    )
+    .build(connector.clone());
+    let hub = Sheets::new(client, auth);
+    let mut service = GoogleSheets4Adapter::new(hub);
+    let sheet_id = service.create_sheet("ledger")?;
+    service.append_row(&sheet_id, vec!["hello".into()])?;
+    Ok(())
+}
+```
+
 # 🛠️ Configuration
 Create a configuration file `config.toml` with the following content:
 ```toml

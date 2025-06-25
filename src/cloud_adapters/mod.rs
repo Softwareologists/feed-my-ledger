@@ -5,6 +5,8 @@ pub mod retry;
 pub use retry::RetryingService;
 pub mod buffered;
 pub use buffered::{BatchingCacheService, EvictionPolicy};
+pub mod google_sheets4;
+pub use google_sheets4::{GoogleSheets4Adapter, HyperClient};
 
 use std::collections::HashMap;
 
