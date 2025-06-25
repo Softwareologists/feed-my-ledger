@@ -78,6 +78,28 @@ async fn example() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Command Line Interface
+
+The crate ships with a small CLI for local experimentation. To add a record and
+view the stored data:
+
+```bash
+$ cargo run --bin ledger -- add \
+    --description "Coffee" \
+    --debit cash --credit expenses \
+    --amount 3.5 --currency USD
+$ cargo run --bin ledger -- list
+```
+
+Adjustments reference an existing record by ID:
+
+```bash
+$ cargo run --bin ledger -- adjust \
+    --id <RECORD_ID> --description "Refund" \
+    --debit expenses --credit cash \
+    --amount 3.5 --currency USD
+```
+
 # 🛠️ Configuration
 Create a configuration file `config.toml` with the following content:
 ```toml
