@@ -16,13 +16,26 @@ pub type HyperClient = hyper_util::client::legacy::Client<HyperConnector, Body>;
 pub struct GoogleSheets4Adapter {
     hub: Sheets<HyperConnector>,
     rt: tokio::runtime::Runtime,
+    drive_base_url: String,
 }
 
 impl GoogleSheets4Adapter {
     /// Create a new adapter from an authenticated `Sheets` hub.
     pub fn new(hub: Sheets<HyperConnector>) -> Self {
+        Self::with_drive_base_url(hub, "https://www.googleapis.com/drive/v3/")
+    }
+
+    /// Create a new adapter with a custom Drive API base URL (useful for tests).
+    pub fn with_drive_base_url(
+        hub: Sheets<HyperConnector>,
+        drive_base_url: impl Into<String>,
+    ) -> Self {
         let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-        Self { hub, rt }
+        Self {
+            hub,
+            rt,
+            drive_base_url: drive_base_url.into(),
+        }
     }
 
     fn map_err(err: sheets4::Error) -> SpreadsheetError {
@@ -97,9 +110,46 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
             .collect())
     }
 
-    fn share_sheet(&self, _sheet_id: &str, _email: &str) -> Result<(), SpreadsheetError> {
-        Err(SpreadsheetError::Permanent(
-            "Sharing via API not implemented".into(),
-        ))
+    fn share_sheet(&self, sheet_id: &str, email: &str) -> Result<(), SpreadsheetError> {
+        use google_sheets4::hyper::header::{
+            AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, USER_AGENT,
+        };
+        use google_sheets4::hyper::{Method, Request};
+        use serde_json::json;
+
+        let drive_url = format!("{}files/{}/permissions", self.drive_base_url, sheet_id);
+
+        let fut = async {
+            let token = self
+                .hub
+                .auth
+                .get_token(&["https://www.googleapis.com/auth/drive"])
+                .await
+                .map_err(|_| SpreadsheetError::ShareFailed)?
+                .ok_or(SpreadsheetError::ShareFailed)?;
+
+            let body_json = json!({
+                "type": "user",
+                "role": "writer",
+                "emailAddress": email,
+            });
+            let body = serde_json::to_vec(&body_json).unwrap();
+            let req = Request::builder()
+                .method(Method::POST)
+                .uri(&drive_url)
+                .header(USER_AGENT, "rusty-ledger")
+                .header(AUTHORIZATION, format!("Bearer {}", token))
+                .header(CONTENT_TYPE, "application/json")
+                .header(CONTENT_LENGTH, body.len() as u64)
+                .body(google_sheets4::common::to_body(Some(body)))
+                .unwrap();
+
+            match self.hub.client.request(req).await {
+                Ok(res) if res.status().is_success() => Ok(()),
+                _ => Err(SpreadsheetError::ShareFailed),
+            }
+        };
+
+        self.rt.block_on(fut)
     }
 }
