@@ -61,7 +61,8 @@ fn main() {
 ```
 
 To work with a live Google Sheet, construct a `GoogleSheets4Adapter` using the
-`google-sheets4` crate:
+`google-sheets4` crate. You may optionally specify the worksheet name when
+creating the adapter; otherwise, it defaults to `Ledger`:
 
 ```rust,no_run
 use rusty_ledger::cloud_adapters::{GoogleSheets4Adapter, HyperConnector};
@@ -86,7 +87,7 @@ async fn example() -> Result<(), Box<dyn std::error::Error>> {
     )
     .build(connector.clone());
     let hub = Sheets::new(client, auth);
-    let mut service = GoogleSheets4Adapter::new(hub);
+    let mut service = GoogleSheets4Adapter::with_sheet_name(hub, "Custom");
     let sheet_id = service.create_sheet("ledger")?;
     service.append_row(&sheet_id, vec!["hello".into()])?;
     Ok(())
@@ -151,6 +152,8 @@ the CLI.
    [google_sheets]
    credentials_path = "path_to_credentials.json"
    spreadsheet_id = "<ID>"
+   # optional: defaults to "Ledger"
+   sheet_name = "Custom"
    ```
 4. Save the file. The CLI reads this configuration on startup.
 

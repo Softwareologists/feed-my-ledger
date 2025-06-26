@@ -17,12 +17,17 @@ pub struct GoogleSheets4Adapter {
     hub: Sheets<HyperConnector>,
     rt: tokio::runtime::Runtime,
     drive_base_url: String,
+    sheet_name: String,
 }
 
 impl GoogleSheets4Adapter {
     /// Create a new adapter from an authenticated `Sheets` hub.
     pub fn new(hub: Sheets<HyperConnector>) -> Self {
-        Self::with_drive_base_url(hub, "https://www.googleapis.com/drive/v3/")
+        Self::with_drive_base_url_and_sheet_name(
+            hub,
+            "https://www.googleapis.com/drive/v3/",
+            "Ledger",
+        )
     }
 
     /// Create a new adapter with a custom Drive API base URL (useful for tests).
@@ -30,12 +35,74 @@ impl GoogleSheets4Adapter {
         hub: Sheets<HyperConnector>,
         drive_base_url: impl Into<String>,
     ) -> Self {
+        Self::with_drive_base_url_and_sheet_name(hub, drive_base_url, "Ledger")
+    }
+
+    /// Create a new adapter with a custom sheet name.
+    pub fn with_sheet_name(hub: Sheets<HyperConnector>, sheet_name: impl Into<String>) -> Self {
+        Self::with_drive_base_url_and_sheet_name(
+            hub,
+            "https://www.googleapis.com/drive/v3/",
+            sheet_name,
+        )
+    }
+
+    /// Create a new adapter with a custom Drive API base URL and sheet name.
+    pub fn with_drive_base_url_and_sheet_name(
+        hub: Sheets<HyperConnector>,
+        drive_base_url: impl Into<String>,
+        sheet_name: impl Into<String>,
+    ) -> Self {
         let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
         Self {
             hub,
             rt,
             drive_base_url: drive_base_url.into(),
+            sheet_name: sheet_name.into(),
         }
+    }
+
+    fn ensure_sheet(&self, sheet_id: &str) -> Result<(), SpreadsheetError> {
+        use sheets4::api::{
+            AddSheetRequest, BatchUpdateSpreadsheetRequest, Request as BatchRequest,
+            SheetProperties,
+        };
+        let fut = self.hub.spreadsheets().get(sheet_id).doit();
+        let res = self.rt.block_on(fut).map_err(Self::map_err)?;
+        let exists = res
+            .1
+            .sheets
+            .as_ref()
+            .map(|sheets| {
+                sheets.iter().any(|s| {
+                    s.properties.as_ref().and_then(|p| p.title.as_deref())
+                        == Some(self.sheet_name.as_str())
+                })
+            })
+            .unwrap_or(false);
+        if exists {
+            return Ok(());
+        }
+
+        let add_sheet = BatchUpdateSpreadsheetRequest {
+            requests: Some(vec![BatchRequest {
+                add_sheet: Some(AddSheetRequest {
+                    properties: Some(SheetProperties {
+                        title: Some(self.sheet_name.clone()),
+                        ..Default::default()
+                    }),
+                }),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        };
+        let fut = self
+            .hub
+            .spreadsheets()
+            .batch_update(add_sheet, sheet_id)
+            .doit();
+        self.rt.block_on(fut).map_err(Self::map_err)?;
+        Ok(())
     }
 
     fn map_err(err: sheets4::Error) -> SpreadsheetError {
@@ -58,10 +125,13 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
         };
         let fut = self.hub.spreadsheets().create(req).doit();
         let res = self.rt.block_on(fut).map_err(Self::map_err)?;
-        Ok(res.1.spreadsheet_id.unwrap_or_default())
+        let id = res.1.spreadsheet_id.unwrap_or_default();
+        self.ensure_sheet(&id)?;
+        Ok(id)
     }
 
     fn append_row(&mut self, sheet_id: &str, values: Vec<String>) -> Result<(), SpreadsheetError> {
+        self.ensure_sheet(sheet_id)?;
         let row = values.into_iter().map(serde_json::Value::String).collect();
         let req = ValueRange {
             values: Some(vec![row]),
@@ -70,7 +140,7 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
         let fut = self
             .hub
             .spreadsheets()
-            .values_append(req, sheet_id, "Sheet1")
+            .values_append(req, sheet_id, &self.sheet_name)
             .value_input_option("USER_ENTERED")
             .doit();
         self.rt.block_on(fut).map_err(Self::map_err)?;
@@ -78,7 +148,8 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
     }
 
     fn read_row(&self, sheet_id: &str, index: usize) -> Result<Vec<String>, SpreadsheetError> {
-        let range = format!("Sheet1!A{}:Z{}", index + 1, index + 1);
+        self.ensure_sheet(sheet_id)?;
+        let range = format!("{}!A{}:Z{}", self.sheet_name, index + 1, index + 1);
         let fut = self.hub.spreadsheets().values_get(sheet_id, &range).doit();
         let res = self.rt.block_on(fut).map_err(Self::map_err)?;
         let rows = res.1.values.unwrap_or_default();
@@ -93,10 +164,11 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
     }
 
     fn list_rows(&self, sheet_id: &str) -> Result<Vec<Vec<String>>, SpreadsheetError> {
+        self.ensure_sheet(sheet_id)?;
         let fut = self
             .hub
             .spreadsheets()
-            .values_get(sheet_id, "Sheet1")
+            .values_get(sheet_id, &self.sheet_name)
             .doit();
         let res = self.rt.block_on(fut).map_err(Self::map_err)?;
         let rows = res.1.values.unwrap_or_default();
