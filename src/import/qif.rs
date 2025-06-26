@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use qif::{DateFormat, QIF};
-
 use super::{ImportError, StatementImporter};
 use crate::core::Record;
 
@@ -10,39 +8,56 @@ pub struct QifImporter;
 impl QifImporter {
     fn parse_internal(path: &Path) -> Result<Vec<Record>, ImportError> {
         let content = std::fs::read_to_string(path)?;
-        let qif = QIF::from_str(&content, &DateFormat::MonthDayFullYear);
+        Self::parse_str(&content)
+    }
+
+    fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
         let mut records = Vec::new();
-        let sections = [
-            qif.cash.as_ref(),
-            qif.bank.as_ref(),
-            qif.credit_card.as_ref(),
-            qif.liability.as_ref(),
-            qif.asset.as_ref(),
-        ];
-        for sec in sections.into_iter().flatten() {
-            for tx in &sec.transactions {
-                let desc = if !tx.memo.is_empty() {
-                    tx.memo.clone()
-                } else {
-                    tx.vendor.clone()
-                };
-                let amt = tx.amount;
-                let (debit, credit) = if amt < 0.0 {
-                    ("expenses".to_string(), "bank".to_string())
-                } else {
-                    ("bank".to_string(), "income".to_string())
-                };
-                let rec = Record::new(
-                    desc,
-                    debit,
-                    credit,
-                    amt.abs(),
-                    "USD".into(),
-                    None,
-                    None,
-                    vec![],
-                )?;
-                records.push(rec);
+        let mut amount: Option<f64> = None;
+        let mut memo: Option<String> = None;
+        let mut vendor: Option<String> = None;
+
+        for line in input.lines() {
+            if line.starts_with('!') {
+                continue;
+            } else if line.starts_with('D') {
+                // date line - ignored
+            } else if let Some(rest) = line.strip_prefix('T') {
+                let val = rest.trim().replace(',', "");
+                let parsed = val
+                    .parse::<f64>()
+                    .map_err(|e| ImportError::Parse(e.to_string()))?;
+                amount = Some(parsed);
+            } else if let Some(rest) = line.strip_prefix('P') {
+                vendor = Some(rest.trim().to_string());
+            } else if let Some(rest) = line.strip_prefix('M') {
+                memo = Some(rest.trim().to_string());
+            } else if line.starts_with('^') {
+                if let Some(a) = amount {
+                    let desc = match &memo {
+                        Some(m) if !m.is_empty() => m.clone(),
+                        _ => vendor.clone().unwrap_or_default(),
+                    };
+                    let (debit, credit) = if a < 0.0 {
+                        ("expenses".to_string(), "bank".to_string())
+                    } else {
+                        ("bank".to_string(), "income".to_string())
+                    };
+                    let rec = Record::new(
+                        desc,
+                        debit,
+                        credit,
+                        a.abs(),
+                        "USD".into(),
+                        None,
+                        None,
+                        vec![],
+                    )?;
+                    records.push(rec);
+                }
+                amount = None;
+                memo = None;
+                vendor = None;
             }
         }
         Ok(records)

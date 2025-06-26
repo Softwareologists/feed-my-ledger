@@ -33,6 +33,17 @@ fn qif_parsing() {
 }
 
 #[test]
+fn qif_memo_overrides_vendor() {
+    let qif_content = "!Type:Bank\nD01/02/2024\nT5.00\nPVend\nMMemo text\n^\n";
+    let path = write_temp("memo.qif", qif_content);
+    let records = qif::parse(&path).unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].description, "Memo text");
+    assert_eq!(records[0].amount, 5.0);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn ofx_parsing() {
     let ofx_content = r#"<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
 <STMTTRN><TRNAMT>-7.00</TRNAMT><NAME>Snack</NAME></STMTTRN>
