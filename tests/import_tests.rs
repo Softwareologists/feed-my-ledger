@@ -1,6 +1,5 @@
 use rusty_ledger::import::{csv, ofx, qif};
 use std::fs::write;
-use std::path::Path;
 
 fn write_temp(name: &str, content: &str) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(name);
