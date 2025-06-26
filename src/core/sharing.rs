@@ -62,15 +62,82 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
     }
 
     /// Create a ledger bound to an existing spreadsheet.
-    pub fn from_sheet(service: S, sheet_id: impl Into<String>, owner: &str) -> Self {
+    pub fn from_sheet(
+        service: S,
+        sheet_id: impl Into<String>,
+        owner: &str,
+    ) -> Result<Self, SpreadsheetError> {
+        let sheet_id = sheet_id.into();
+        let mut ledger = Ledger::default();
+        Self::load_existing_rows(&service, &mut ledger, &sheet_id)?;
+
         let mut permissions = HashMap::new();
         permissions.insert(owner.to_string(), Permission::Write);
-        Self {
-            ledger: Mutex::new(Ledger::default()),
+        Ok(Self {
+            ledger: Mutex::new(ledger),
             service: Mutex::new(service),
-            sheet_id: sheet_id.into(),
+            sheet_id,
             permissions: Mutex::new(permissions),
+        })
+    }
+
+    fn load_existing_rows(
+        service: &S,
+        ledger: &mut Ledger,
+        sheet_id: &str,
+    ) -> Result<(), SpreadsheetError> {
+        let rows = service.list_rows(sheet_id)?;
+        for row in rows {
+            let rec = Self::record_from_row(&row)?;
+            ledger.commit(rec);
         }
+        Ok(())
+    }
+
+    fn record_from_row(row: &[String]) -> Result<Record, SpreadsheetError> {
+        if row.len() < 10 {
+            return Err(SpreadsheetError::Permanent("invalid row".into()));
+        }
+
+        let id = uuid::Uuid::parse_str(&row[0])
+            .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?;
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&row[1])
+            .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?
+            .with_timezone(&chrono::Utc);
+        let amount = row[5]
+            .parse::<f64>()
+            .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?;
+        let reference_id = if row[7].is_empty() {
+            None
+        } else {
+            Some(
+                uuid::Uuid::parse_str(&row[7])
+                    .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?,
+            )
+        };
+        let external_reference = if row[8].is_empty() {
+            None
+        } else {
+            Some(row[8].clone())
+        };
+        let tags = if row[9].is_empty() {
+            Vec::new()
+        } else {
+            row[9].split(',').map(|s| s.to_string()).collect()
+        };
+
+        Ok(Record {
+            id,
+            timestamp,
+            description: row[2].clone(),
+            debit_account: row[3].clone(),
+            credit_account: row[4].clone(),
+            amount,
+            currency: row[6].clone(),
+            reference_id,
+            external_reference,
+            tags,
+        })
     }
 
     /// Return the underlying spreadsheet identifier.

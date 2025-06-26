@@ -202,3 +202,80 @@ fn new_propagates_spreadsheet_error() {
         rusty_ledger::cloud_adapters::SpreadsheetError::Permanent("boom".into())
     );
 }
+
+#[test]
+fn from_sheet_loads_existing_rows() {
+    let mut adapter = GoogleSheetsAdapter::new();
+    let sheet = adapter.create_sheet("ledger").unwrap();
+    let record = Record::new(
+        "desc".into(),
+        "cash".into(),
+        "revenue".into(),
+        2.0,
+        "USD".into(),
+        None,
+        None,
+        vec!["tag".into()],
+    )
+    .unwrap();
+    adapter.append_row(&sheet, record.to_row()).unwrap();
+
+    let ledger = SharedLedger::from_sheet(adapter, &sheet, "owner@example.com").unwrap();
+    let records = ledger.records("owner@example.com").unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0], record);
+}
+
+#[derive(Default)]
+struct FailingList;
+
+impl CloudSpreadsheetService for FailingList {
+    fn create_sheet(
+        &mut self,
+        _title: &str,
+    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        Ok("sheet1".into())
+    }
+
+    fn append_row(
+        &mut self,
+        _sheet_id: &str,
+        _values: Vec<String>,
+    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn read_row(
+        &self,
+        _sheet_id: &str,
+        _index: usize,
+    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+
+    fn list_rows(
+        &self,
+        _sheet_id: &str,
+    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+        Err(rusty_ledger::cloud_adapters::SpreadsheetError::SheetNotFound)
+    }
+
+    fn share_sheet(
+        &self,
+        _sheet_id: &str,
+        _email: &str,
+    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+        unimplemented!()
+    }
+}
+
+#[test]
+fn from_sheet_propagates_errors() {
+    let adapter = FailingList;
+    let res = SharedLedger::from_sheet(adapter, "missing", "owner@example.com");
+    let err = res.err().unwrap();
+    assert_eq!(
+        err,
+        rusty_ledger::cloud_adapters::SpreadsheetError::SheetNotFound
+    );
+}
