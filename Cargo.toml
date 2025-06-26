@@ -15,7 +15,6 @@ clap = { version = "4", features = ["derive"] }
 toml = "0.8"
 yup-oauth2 = "11"
 csv = "1"
-qif = "0.1"
 quick-xml = "0.37"
 
 [dev-dependencies]
