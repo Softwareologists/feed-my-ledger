@@ -80,6 +80,16 @@ use rusty_ledger::import::{csv, ofx, qif};
 use std::path::Path;
 
 let records = csv::parse(Path::new("transactions.csv"))?;
+
+// provide custom column names when the CSV headers differ
+let mapping = csv::CsvMapping {
+    description: "desc".into(),
+    debit_account: "debit".into(),
+    credit_account: "credit".into(),
+    amount: "value".into(),
+    currency: "curr".into(),
+};
+let custom = csv::parse_with_mapping(Path::new("other.csv"), &mapping)?;
 ```
 
 ## API Overview
