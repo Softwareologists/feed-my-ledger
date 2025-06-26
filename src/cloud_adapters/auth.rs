@@ -154,7 +154,6 @@ pub async fn initial_oauth_login(
     credentials_path: &str,
     token_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use google_sheets4::api::Scope;
     use yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
     if !std::path::Path::new(credentials_path).exists() {
@@ -174,7 +173,10 @@ pub async fn initial_oauth_login(
         .build()
         .await?;
     let _ = auth
-        .token(&[Scope::DriveFile.as_ref(), Scope::Spreadsheet.as_ref()])
+        .token(&[
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/spreadsheets",
+        ])
         .await?;
     Ok(())
 }

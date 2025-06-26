@@ -1,4 +1,4 @@
-use rusty_ledger::cloud_adapters::google_sheets4::HyperConnector;
+use rusty_ledger::cloud_adapters::google_sheets4::TokenProvider;
 use rusty_ledger::cloud_adapters::{
     CloudSpreadsheetService, GoogleSheets4Adapter, GoogleSheetsAdapter, SpreadsheetError,
 };
@@ -54,25 +54,19 @@ fn google_sheets4_adapter_is_service() {
 #[derive(Clone)]
 struct StaticToken;
 
-impl google_sheets4::common::GetToken for StaticToken {
-    fn get_token<'a>(
+impl TokenProvider for StaticToken {
+    fn token<'a>(
         &'a self,
         _scopes: &'a [&str],
     ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<Option<String>, Box<dyn std::error::Error + Send + Sync>>,
-                > + Send
-                + 'a,
-        >,
+        Box<dyn std::future::Future<Output = Result<String, SpreadsheetError>> + Send + 'a>,
     > {
-        Box::pin(async { Ok(Some("test-token".to_string())) })
+        Box::pin(async { Ok("test-token".to_string()) })
     }
 }
 
 #[tokio::test]
 async fn share_sheet_sends_request() {
-    use google_sheets4::{Sheets, hyper_rustls, hyper_util};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -83,17 +77,8 @@ async fn share_sheet_sends_request() {
         .mount(&server)
         .await;
 
-    let connector: HyperConnector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .unwrap()
-        .https_or_http()
-        .enable_http1()
-        .build();
-    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-        .build(connector.clone());
-    let hub = Sheets::new(client, StaticToken);
-
-    let adapter = GoogleSheets4Adapter::with_drive_base_url(hub, format!("{}/", server.uri()));
+    let adapter =
+        GoogleSheets4Adapter::with_drive_base_url(StaticToken, format!("{}/", server.uri()));
     tokio::task::spawn_blocking(move || {
         adapter.share_sheet("sheet123", "user@example.com").unwrap();
     })
@@ -104,7 +89,6 @@ async fn share_sheet_sends_request() {
 
 #[tokio::test]
 async fn share_sheet_propagates_failure() {
-    use google_sheets4::{Sheets, hyper_rustls, hyper_util};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -115,17 +99,8 @@ async fn share_sheet_propagates_failure() {
         .mount(&server)
         .await;
 
-    let connector: HyperConnector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .unwrap()
-        .https_or_http()
-        .enable_http1()
-        .build();
-    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-        .build(connector.clone());
-    let hub = Sheets::new(client, StaticToken);
-
-    let adapter = GoogleSheets4Adapter::with_drive_base_url(hub, format!("{}/", server.uri()));
+    let adapter =
+        GoogleSheets4Adapter::with_drive_base_url(StaticToken, format!("{}/", server.uri()));
     let err = tokio::task::spawn_blocking(move || {
         adapter.share_sheet("bad", "user@example.com").unwrap_err()
     })
