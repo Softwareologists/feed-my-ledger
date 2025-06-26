@@ -142,13 +142,17 @@ the CLI.
    ```bash
    $ touch config.toml
    ```
-2. Add the following contents, replacing the placeholder values:
+
+2. Determine your spreadsheet ID. Open the sheet in your browser and copy the
+   portion of the URL between `/d/` and `/edit`, for example
+   `https://docs.google.com/spreadsheets/d/<ID>/edit`.
+3. Add the following contents, replacing the placeholder values:
    ```toml
    [google_sheets]
    credentials_path = "path_to_credentials.json"
-   spreadsheet_id = "your_spreadsheet_id"
+   spreadsheet_id = "<ID>"
    ```
-3. Save the file. The CLI reads this configuration on startup.
+4. Save the file. The CLI reads this configuration on startup.
 
 # 🧪 Running Tests
 ```bash
