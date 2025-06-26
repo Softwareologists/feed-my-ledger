@@ -13,6 +13,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 clap = { version = "4", features = ["derive"] }
 toml = "0.7"
 yup-oauth2 = "11"
+csv = "1"
+qif = "0.1"
+quick-xml = "0.37"
 
 [dev-dependencies]
 wiremock = "0.6"
