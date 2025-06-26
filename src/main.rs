@@ -122,18 +122,17 @@ async fn adapter_from_config(
     Ok(GoogleSheets4Adapter::new(hub))
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let rt = tokio::runtime::Runtime::new()?;
     let cli = Cli::parse();
     let config_path = PathBuf::from("config.toml");
     let mut cfg = load_config(&config_path);
 
     if matches!(cli.command, Commands::Login) {
-        rusty_ledger::cloud_adapters::auth::initial_oauth_login(
+        rt.block_on(rusty_ledger::cloud_adapters::auth::initial_oauth_login(
             &cfg.google_sheets.credentials_path,
             "tokens.json",
-        )
-        .await?;
+        ))?;
         println!("Login successful");
         return Ok(());
     }
@@ -146,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let mut adapter = adapter_from_config(&cfg.google_sheets).await?;
+    let mut adapter = rt.block_on(adapter_from_config(&cfg.google_sheets))?;
     let sheet_id = match &cfg.google_sheets.spreadsheet_id {
         Some(id) => id.clone(),
         None => {
