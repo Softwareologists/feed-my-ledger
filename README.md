@@ -98,10 +98,24 @@ $ cargo run --bin ledger -- list
 Adjustments reference an existing record by ID:
 
 ```bash
+
+```bash
 $ cargo run --bin ledger -- adjust \
     --id <RECORD_ID> --description "Refund" \
     --debit expenses --credit cash \
     --amount 3.5 --currency USD
+```
+
+Share the active sheet:
+
+```bash
+$ cargo run --bin ledger -- share --email someone@example.com
+```
+
+Switch to a different sheet by URL:
+
+```bash
+$ cargo run --bin ledger -- switch --link "https://docs.google.com/spreadsheets/d/<ID>/edit"
 ```
 
 # 🛠️ Configuration

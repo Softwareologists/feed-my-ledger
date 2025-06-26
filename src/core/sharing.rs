@@ -40,6 +40,23 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         })
     }
 
+    /// Create a ledger bound to an existing spreadsheet.
+    pub fn from_sheet(service: S, sheet_id: impl Into<String>, owner: &str) -> Self {
+        let mut permissions = HashMap::new();
+        permissions.insert(owner.to_string(), Permission::Write);
+        Self {
+            ledger: Mutex::new(Ledger::default()),
+            service: Mutex::new(service),
+            sheet_id: sheet_id.into(),
+            permissions: Mutex::new(permissions),
+        }
+    }
+
+    /// Return the underlying spreadsheet identifier.
+    pub fn sheet_id(&self) -> &str {
+        &self.sheet_id
+    }
+
     pub fn share_with(&self, email: &str, permission: Permission) -> Result<(), AccessError> {
         let service = self.service.lock().unwrap();
         service

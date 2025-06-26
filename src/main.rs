@@ -1,10 +1,29 @@
+use std::fs;
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
-use rusty_ledger::cloud_adapters::GoogleSheetsAdapter;
-use rusty_ledger::core::{Record, SharedLedger};
-use uuid::Uuid;
+use google_sheets4::{Sheets, hyper_rustls, hyper_util};
+use rusty_ledger::cloud_adapters::{
+    CloudSpreadsheetService,
+    google_sheets4::{GoogleSheets4Adapter, HyperClient, HyperConnector},
+};
+use rusty_ledger::core::Record;
+use serde::{Deserialize, Serialize};
+use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
+
+#[derive(Serialize, Deserialize, Default)]
+struct GoogleSheetsConfig {
+    credentials_path: String,
+    spreadsheet_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct Config {
+    google_sheets: GoogleSheetsConfig,
+}
 
 #[derive(Parser)]
-#[command(name = "ledger", about = "Interact with a local ledger")]
+#[command(name = "ledger", about = "Interact with a cloud ledger")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -25,7 +44,7 @@ enum Commands {
         #[arg(long)]
         currency: String,
     },
-    /// List all records
+    /// List all rows in the active sheet
     List,
     /// Apply an adjustment referencing an existing record
     Adjust {
@@ -42,11 +61,89 @@ enum Commands {
         #[arg(long)]
         currency: String,
     },
+    /// Share the sheet with another user
+    Share {
+        #[arg(long)]
+        email: String,
+        #[arg(long, default_value = "read")]
+        permission: String,
+    },
+    /// Switch active sheet using a link or ID
+    Switch {
+        #[arg(long)]
+        link: String,
+    },
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn load_config(path: &PathBuf) -> Config {
+    if let Ok(data) = fs::read_to_string(path) {
+        toml::from_str(&data).unwrap_or_default()
+    } else {
+        Config::default()
+    }
+}
+
+fn save_config(path: &PathBuf, cfg: &Config) {
+    if let Ok(data) = toml::to_string(cfg) {
+        let _ = fs::write(path, data);
+    }
+}
+
+fn parse_sheet_id(input: &str) -> String {
+    if let Some(start) = input.find("/d/") {
+        let rest = &input[start + 3..];
+        let end = rest.find('/').unwrap_or(rest.len());
+        rest[..end].to_string()
+    } else {
+        input.to_string()
+    }
+}
+
+async fn adapter_from_config(
+    cfg: &GoogleSheetsConfig,
+) -> Result<GoogleSheets4Adapter, Box<dyn std::error::Error>> {
+    let secret = yup_oauth2::read_application_secret(&cfg.credentials_path).await?;
+    let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::Interactive)
+        .persist_tokens_to_disk("tokens.json")
+        .build()
+        .await?;
+
+    let connector: HyperConnector = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_native_roots()?
+        .https_or_http()
+        .enable_http1()
+        .build();
+    let client: HyperClient =
+        hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+            .build(connector.clone());
+    let hub = Sheets::new(client, auth);
+    Ok(GoogleSheets4Adapter::new(hub))
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    let ledger = SharedLedger::new(GoogleSheetsAdapter::new(), "cli")?;
+    let config_path = PathBuf::from("config.toml");
+    let mut cfg = load_config(&config_path);
+
+    if let Commands::Switch { link } = &cli.command {
+        let id = parse_sheet_id(link);
+        cfg.google_sheets.spreadsheet_id = Some(id.clone());
+        save_config(&config_path, &cfg);
+        println!("Active sheet set to {id}");
+        return Ok(());
+    }
+
+    let mut adapter = adapter_from_config(&cfg.google_sheets).await?;
+    let sheet_id = match &cfg.google_sheets.spreadsheet_id {
+        Some(id) => id.clone(),
+        None => {
+            let id = adapter.create_sheet("ledger")?;
+            cfg.google_sheets.spreadsheet_id = Some(id.clone());
+            save_config(&config_path, &cfg);
+            id
+        }
+    };
 
     match cli.command {
         Commands::Add {
@@ -66,21 +163,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None,
                 vec![],
             )?;
-            ledger
-                .commit("cli", record)
-                .map_err(|e| format!("{:?}", e))?;
+            adapter.append_row(&sheet_id, record.to_row())?;
         }
         Commands::List => {
-            for record in ledger.records("cli").map_err(|e| format!("{:?}", e))? {
-                println!(
-                    "{} | {} -> {} {} {} ({})",
-                    record.description,
-                    record.debit_account,
-                    record.credit_account,
-                    record.amount,
-                    record.currency,
-                    record.id
-                );
+            let rows = adapter.list_rows(&sheet_id)?;
+            for row in rows {
+                println!("{}", row.join(" | "));
             }
         }
         Commands::Adjust {
@@ -91,8 +179,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             amount,
             currency,
         } => {
-            let original = Uuid::parse_str(&id)?;
-            let record = Record::new(
+            let reference = uuid::Uuid::parse_str(&id)?;
+            let mut record = Record::new(
                 description,
                 debit,
                 credit,
@@ -102,10 +190,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None,
                 vec![],
             )?;
-            ledger
-                .apply_adjustment("cli", original, record)
-                .map_err(|e| format!("{:?}", e))?;
+            record.reference_id = Some(reference);
+            adapter.append_row(&sheet_id, record.to_row())?;
         }
+        Commands::Share { email, .. } => {
+            adapter
+                .share_sheet(&sheet_id, &email)
+                .map_err(|e| format!("{e}"))?;
+            println!("Shared with {email}");
+        }
+        Commands::Switch { .. } => unreachable!(),
     }
 
     Ok(())
