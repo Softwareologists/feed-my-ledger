@@ -49,9 +49,11 @@ fn main() {
 }
 ```
 
-To work with a live Google Sheet, construct a `GoogleSheets4Adapter` using the
-`google-sheets4` crate. You may optionally specify the worksheet name when
-creating the adapter; otherwise, it defaults to `Ledger`:
+To work with a live Google Sheet, construct a `GoogleSheets4Adapter` that
+communicates with the official Google Sheets REST API. This approach avoids
+extra third‑party wrappers and keeps the dependency surface minimal. You may
+optionally specify the worksheet name when creating the adapter; otherwise, it
+defaults to `Ledger`:
 
 ```rust,no_run
 use rusty_ledger::cloud_adapters::{GoogleSheets4Adapter, HyperConnector};
