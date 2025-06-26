@@ -8,6 +8,7 @@ use rusty_ledger::cloud_adapters::{
     google_sheets4::{GoogleSheets4Adapter, HyperClient, HyperConnector},
 };
 use rusty_ledger::core::Record;
+use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
@@ -70,6 +71,13 @@ enum Commands {
         email: String,
         #[arg(long, default_value = "read")]
         permission: String,
+    },
+    /// Import transactions from a file
+    Import {
+        #[arg(long)]
+        file: PathBuf,
+        #[arg(long)]
+        format: Option<String>,
     },
     /// Switch active sheet using a link or ID
     Switch {
@@ -244,6 +252,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .share_sheet(&sheet_id, &email)
                 .map_err(|e| format!("{e}"))?;
             println!("Shared with {email}");
+        }
+        Commands::Import { file, format } => {
+            let fmt = format
+                .or_else(|| {
+                    file.extension()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                })
+                .ok_or_else(|| "could not determine file format".to_string())?;
+            let records = match fmt.to_lowercase().as_str() {
+                "csv" => import::csv::parse(&file),
+                "qif" => import::qif::parse(&file),
+                "ofx" => import::ofx::parse(&file),
+                other => return Err(format!("unsupported format: {other}").into()),
+            }?;
+            for rec in records {
+                adapter.append_row(&sheet_id, rec.to_row())?;
+            }
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),
     }
