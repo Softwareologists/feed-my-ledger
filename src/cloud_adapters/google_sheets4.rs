@@ -1,5 +1,8 @@
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
-use reqwest::Client;
+use hyper::client::HttpConnector;
+use hyper::http::header;
+use hyper::{Body, Client, Method, Request, body::to_bytes};
+use hyper_rustls::HttpsConnectorBuilder;
 use serde_json::json;
 use std::future::Future;
 use std::pin::Pin;
@@ -30,7 +33,7 @@ impl TokenProvider for yup_oauth2::authenticator::DefaultAuthenticator {
 
 /// Adapter backed by the Google Sheets REST API.
 pub struct GoogleSheets4Adapter {
-    client: Client,
+    client: Client<hyper_rustls::HttpsConnector<HttpConnector>, Body>,
     auth: Box<dyn TokenProvider>,
     rt: tokio::runtime::Runtime,
     drive_base_url: String,
@@ -79,8 +82,14 @@ impl GoogleSheets4Adapter {
         sheets_base_url: impl Into<String>,
         sheet_name: impl Into<String>,
     ) -> Self {
+        let https = HttpsConnectorBuilder::new()
+            .with_native_roots()
+            .https_or_http()
+            .enable_http1()
+            .build();
+        let client = Client::builder().build::<_, Body>(https);
         Self {
-            client: Client::new(),
+            client,
             auth: Box::new(auth),
             rt: tokio::runtime::Runtime::new().expect("tokio runtime"),
             drive_base_url: drive_base_url.into(),
@@ -98,17 +107,22 @@ impl GoogleSheets4Adapter {
             .get_token(&["https://www.googleapis.com/auth/spreadsheets"])
             .await?;
         let url = format!("{}spreadsheets/{}", self.sheets_base_url, sheet_id);
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri(&url)
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::empty())
+            .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let res = self
             .client
-            .get(&url)
-            .bearer_auth(&token)
-            .send()
+            .request(req)
             .await
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let exists = if res.status().is_success() {
-            let body: serde_json::Value = res
-                .json()
+            let bytes = to_bytes(res.into_body())
                 .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+            let body: serde_json::Value = serde_json::from_slice(&bytes)
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             body["sheets"].as_array().is_some_and(|sheets| {
                 sheets
@@ -126,15 +140,19 @@ impl GoogleSheets4Adapter {
             "{}spreadsheets/{}:batchUpdate",
             self.sheets_base_url, sheet_id
         );
-        let body = json!({
+        let body_json = json!({
             "requests": [{"addSheet": {"properties": {"title": self.sheet_name}}}]
         });
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(update_url)
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(body_json.to_string()))
+            .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let res = self
             .client
-            .post(&update_url)
-            .bearer_auth(&token)
-            .json(&body)
-            .send()
+            .request(req)
             .await
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         if res.status().is_success() {
@@ -152,21 +170,26 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 .get_token(&["https://www.googleapis.com/auth/spreadsheets"])
                 .await?;
             let url = format!("{}spreadsheets", self.sheets_base_url);
-            let body = json!({"properties": {"title": title}});
+            let body_json = json!({"properties": {"title": title}});
+            let req = Request::builder()
+                .method(Method::POST)
+                .uri(&url)
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(body_json.to_string()))
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
-                .post(&url)
-                .bearer_auth(&token)
-                .json(&body)
-                .send()
+                .request(req)
                 .await
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("create failed".into()));
             }
-            let body: serde_json::Value = res
-                .json()
+            let bytes = to_bytes(res.into_body())
                 .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+            let body: serde_json::Value = serde_json::from_slice(&bytes)
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let id = body["spreadsheetId"]
                 .as_str()
@@ -189,13 +212,17 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
             );
             let row: Vec<serde_json::Value> =
                 values.into_iter().map(serde_json::Value::String).collect();
-            let body = json!({"values": [row]});
+            let body_json = json!({"values": [row]});
+            let req = Request::builder()
+                .method(Method::POST)
+                .uri(&url)
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(body_json.to_string()))
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
-                .post(&url)
-                .bearer_auth(&token)
-                .json(&body)
-                .send()
+                .request(req)
                 .await
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             if res.status().is_success() {
@@ -217,19 +244,24 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 "{}spreadsheets/{}/values/{}",
                 self.sheets_base_url, sheet_id, range
             );
+            let req = Request::builder()
+                .method(Method::GET)
+                .uri(&url)
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
-                .get(&url)
-                .bearer_auth(&token)
-                .send()
+                .request(req)
                 .await
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             if !res.status().is_success() {
                 return Err(SpreadsheetError::RowNotFound);
             }
-            let body: serde_json::Value = res
-                .json()
+            let bytes = to_bytes(res.into_body())
                 .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+            let body: serde_json::Value = serde_json::from_slice(&bytes)
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let row = body["values"]
                 .as_array()
@@ -255,19 +287,24 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 "{}spreadsheets/{}/values/{}",
                 self.sheets_base_url, sheet_id, self.sheet_name
             );
+            let req = Request::builder()
+                .method(Method::GET)
+                .uri(&url)
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
-                .get(&url)
-                .bearer_auth(&token)
-                .send()
+                .request(req)
                 .await
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("list failed".into()));
             }
-            let body: serde_json::Value = res
-                .json()
+            let bytes = to_bytes(res.into_body())
                 .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+            let body: serde_json::Value = serde_json::from_slice(&bytes)
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let rows = body["values"].as_array().cloned().unwrap_or_default();
             Ok(rows
@@ -289,13 +326,17 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 .get_token(&["https://www.googleapis.com/auth/drive"])
                 .await?;
             let url = format!("{}files/{}/permissions", self.drive_base_url, sheet_id);
-            let body = json!({"type": "user", "role": "writer", "emailAddress": email});
+            let body_json = json!({"type": "user", "role": "writer", "emailAddress": email});
+            let req = Request::builder()
+                .method(Method::POST)
+                .uri(&url)
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(body_json.to_string()))
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
-                .post(&url)
-                .bearer_auth(&token)
-                .json(&body)
-                .send()
+                .request(req)
                 .await
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             if res.status().is_success() {
