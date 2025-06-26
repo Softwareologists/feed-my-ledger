@@ -239,3 +239,31 @@ fn record_creation_rejects_nonpositive_amounts() {
     .unwrap_err();
     assert_eq!(negative_err, RecordError::NonPositiveAmount);
 }
+
+#[test]
+fn record_creation_validates_currency() {
+    let valid = Record::new(
+        "ok".into(),
+        "cash".into(),
+        "revenue".into(),
+        1.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    );
+    assert!(valid.is_ok());
+
+    let invalid = Record::new(
+        "bad".into(),
+        "cash".into(),
+        "revenue".into(),
+        1.0,
+        "ZZZ".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap_err();
+    assert_eq!(invalid, RecordError::UnsupportedCurrency("ZZZ".into()));
+}

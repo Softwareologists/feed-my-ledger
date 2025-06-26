@@ -1,6 +1,7 @@
 //! Core logic for the append-only immutable database.
 
 use chrono::{DateTime, Utc};
+use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -14,6 +15,8 @@ pub enum RecordError {
     SameAccount,
     /// The amount provided is not positive.
     NonPositiveAmount,
+    /// The provided currency code is not supported.
+    UnsupportedCurrency(String),
 }
 
 impl std::fmt::Display for RecordError {
@@ -24,6 +27,9 @@ impl std::fmt::Display for RecordError {
             }
             RecordError::NonPositiveAmount => {
                 write!(f, "transaction amount must be greater than zero")
+            }
+            RecordError::UnsupportedCurrency(code) => {
+                write!(f, "unsupported currency code: {code}")
             }
         }
     }
@@ -74,6 +80,9 @@ impl Record {
         }
         if amount <= 0.0 {
             return Err(RecordError::NonPositiveAmount);
+        }
+        if Currency::from_code(&currency).is_none() {
+            return Err(RecordError::UnsupportedCurrency(currency));
         }
 
         Ok(Self {
