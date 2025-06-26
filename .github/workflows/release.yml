@@ -9,21 +9,24 @@ on:
 jobs:
   build:
     name: Build Binaries
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+        target: [x86_64-unknown-linux-gnu, x86_64-apple-darwin, x86_64-pc-windows-gnu]
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
+          target: ${{ matrix.target }}
+      - name: Install cross
+        run: cargo install cross --locked
       - name: Build
-        run: cargo build --release --locked
+        run: cross build --release --locked --target ${{ matrix.target }}
       - name: Strip
-        if: matrix.os != 'windows-latest'
-        run: strip target/release/rusty-ledger
+        if: matrix.target != 'x86_64-pc-windows-gnu'
+        run: strip target/${{ matrix.target }}/release/rusty-ledger
       - name: Package
         id: package
         shell: bash
@@ -31,20 +34,21 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           name=rusty-ledger-${{ github.ref_name }}
-          if [[ "${{ matrix.os }}" == 'windows-latest' ]]; then
-            cp target/release/rusty-ledger.exe "$name.exe"
+          bin=target/${{ matrix.target }}/release
+          if [[ "${{ matrix.target }}" == 'x86_64-pc-windows-gnu' ]]; then
+            cp "$bin/rusty-ledger.exe" "$name.exe"
             7z a "dist/$name-windows.zip" "$name.exe"
             sha256sum "dist/$name-windows.zip" > "dist/$name-windows.zip.sha256"
             echo "archive=dist/$name-windows.zip" >> "$GITHUB_OUTPUT"
             echo "checksum=dist/$name-windows.zip.sha256" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ matrix.os }}" == 'macos-latest' ]]; then
-            cp target/release/rusty-ledger "$name"
+          elif [[ "${{ matrix.target }}" == 'x86_64-apple-darwin' ]]; then
+            cp "$bin/rusty-ledger" "$name"
             tar czf "dist/$name-macos.tar.gz" "$name"
             sha256sum "dist/$name-macos.tar.gz" > "dist/$name-macos.tar.gz.sha256"
             echo "archive=dist/$name-macos.tar.gz" >> "$GITHUB_OUTPUT"
             echo "checksum=dist/$name-macos.tar.gz.sha256" >> "$GITHUB_OUTPUT"
           else
-            cp target/release/rusty-ledger "$name"
+            cp "$bin/rusty-ledger" "$name"
             tar czf "dist/$name-linux.tar.gz" "$name"
             sha256sum "dist/$name-linux.tar.gz" > "dist/$name-linux.tar.gz.sha256"
             echo "archive=dist/$name-linux.tar.gz" >> "$GITHUB_OUTPUT"
@@ -52,7 +56,7 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}
+          name: ${{ matrix.target }}
           path: |
             ${{ steps.package.outputs.archive }}
             ${{ steps.package.outputs.checksum }}
