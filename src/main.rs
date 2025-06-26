@@ -1,11 +1,13 @@
 use std::fs;
 use std::path::PathBuf;
 
+use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
 use rusty_ledger::core::Record;
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 #[derive(Serialize, Deserialize, Default)]
@@ -117,6 +119,11 @@ enum Commands {
         #[command(flatten)]
         mapping: CsvMapArgs,
     },
+    /// Display the balance for an account
+    Balance {
+        #[arg(long)]
+        account: String,
+    },
     /// Switch active sheet using a link or ID
     Switch {
         #[arg(long)]
@@ -168,6 +175,38 @@ fn parse_sheet_id(input: &str) -> String {
     } else {
         input.to_string()
     }
+}
+
+fn record_from_row(row: &[String]) -> Option<Record> {
+    if row.len() < 10 {
+        return None;
+    }
+
+    let amount = row[5].parse::<f64>().ok()?;
+    Some(Record {
+        id: Uuid::nil(),
+        timestamp: Utc::now(),
+        description: row[2].clone(),
+        debit_account: row[3].clone(),
+        credit_account: row[4].clone(),
+        amount,
+        currency: row[6].clone(),
+        reference_id: if row[7].is_empty() {
+            None
+        } else {
+            Uuid::parse_str(&row[7]).ok()
+        },
+        external_reference: if row[8].is_empty() {
+            None
+        } else {
+            Some(row[8].clone())
+        },
+        tags: if row[9].is_empty() {
+            Vec::new()
+        } else {
+            row[9].split(',').map(|s| s.to_string()).collect()
+        },
+    })
 }
 
 async fn adapter_from_config(
@@ -309,6 +348,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for rec in records {
                 adapter.append_row(&sheet_id, rec.to_row())?;
             }
+        }
+        Commands::Balance { account } => {
+            let rows = adapter.list_rows(&sheet_id)?;
+            let mut balance = 0.0;
+            for row in rows {
+                if let Some(rec) = record_from_row(&row) {
+                    if rec.debit_account == account {
+                        balance += rec.amount;
+                    }
+                    if rec.credit_account == account {
+                        balance -= rec.amount;
+                    }
+                }
+            }
+            println!("{balance}");
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),
     }

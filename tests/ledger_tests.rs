@@ -267,3 +267,86 @@ fn record_creation_validates_currency() {
     .unwrap_err();
     assert_eq!(invalid, RecordError::UnsupportedCurrency("ZZZ".into()));
 }
+
+#[test]
+fn account_balance_after_commits() {
+    let mut ledger = Ledger::default();
+    ledger.commit(
+        Record::new(
+            "first".into(),
+            "cash".into(),
+            "revenue".into(),
+            2.0,
+            "USD".into(),
+            None,
+            None,
+            vec![],
+        )
+        .unwrap(),
+    );
+    ledger.commit(
+        Record::new(
+            "second".into(),
+            "cash".into(),
+            "revenue".into(),
+            3.0,
+            "USD".into(),
+            None,
+            None,
+            vec![],
+        )
+        .unwrap(),
+    );
+
+    assert_eq!(ledger.account_balance("cash"), 5.0);
+    assert_eq!(ledger.account_balance("revenue"), -5.0);
+}
+
+#[test]
+fn account_balance_with_adjustments() {
+    let mut ledger = Ledger::default();
+
+    let original = Record::new(
+        "orig".into(),
+        "cash".into(),
+        "revenue".into(),
+        10.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    let orig_id = original.id;
+    ledger.commit(original);
+
+    let adj1 = Record::new(
+        "adj1".into(),
+        "revenue".into(),
+        "cash".into(),
+        2.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    let adj1_id = adj1.id;
+    ledger.apply_adjustment(orig_id, adj1).unwrap();
+
+    let adj2 = Record::new(
+        "adj2".into(),
+        "cash".into(),
+        "revenue".into(),
+        1.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    ledger.apply_adjustment(adj1_id, adj2).unwrap();
+
+    assert_eq!(ledger.account_balance("cash"), 9.0);
+    assert_eq!(ledger.account_balance("revenue"), -9.0);
+}
