@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 use google_sheets4::{Sheets, hyper_rustls, hyper_util};
 use rusty_ledger::cloud_adapters::{
     CloudSpreadsheetService,
@@ -22,6 +22,46 @@ struct GoogleSheetsConfig {
 #[derive(Serialize, Deserialize, Default)]
 struct Config {
     google_sheets: GoogleSheetsConfig,
+}
+
+#[derive(Args, Debug, Default)]
+struct CsvMapArgs {
+    #[arg(long, help = "Column name for the description field")]
+    map_description: Option<String>,
+    #[arg(long, help = "Column name for the debit account field")]
+    map_debit: Option<String>,
+    #[arg(long, help = "Column name for the credit account field")]
+    map_credit: Option<String>,
+    #[arg(long, help = "Column name for the amount field")]
+    map_amount: Option<String>,
+    #[arg(long, help = "Column name for the currency field")]
+    map_currency: Option<String>,
+}
+
+impl CsvMapArgs {
+    fn into_mapping(self) -> Option<import::csv::CsvMapping> {
+        if self.map_description.is_none()
+            && self.map_debit.is_none()
+            && self.map_credit.is_none()
+            && self.map_amount.is_none()
+            && self.map_currency.is_none()
+        {
+            return None;
+        }
+        Some(import::csv::CsvMapping {
+            description: self
+                .map_description
+                .unwrap_or_else(|| "description".to_string()),
+            debit_account: self
+                .map_debit
+                .unwrap_or_else(|| "debit_account".to_string()),
+            credit_account: self
+                .map_credit
+                .unwrap_or_else(|| "credit_account".to_string()),
+            amount: self.map_amount.unwrap_or_else(|| "amount".to_string()),
+            currency: self.map_currency.unwrap_or_else(|| "currency".to_string()),
+        })
+    }
 }
 
 #[derive(Parser)]
@@ -78,6 +118,8 @@ enum Commands {
         file: PathBuf,
         #[arg(long)]
         format: Option<String>,
+        #[command(flatten)]
+        mapping: CsvMapArgs,
     },
     /// Switch active sheet using a link or ID
     Switch {
@@ -253,7 +295,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map_err(|e| format!("{e}"))?;
             println!("Shared with {email}");
         }
-        Commands::Import { file, format } => {
+        Commands::Import {
+            file,
+            format,
+            mapping,
+        } => {
             let fmt = format
                 .or_else(|| {
                     file.extension()
@@ -262,7 +308,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .ok_or_else(|| "could not determine file format".to_string())?;
             let records = match fmt.to_lowercase().as_str() {
-                "csv" => import::csv::parse(&file),
+                "csv" => {
+                    if let Some(map) = mapping.into_mapping() {
+                        import::csv::parse_with_mapping(&file, &map)
+                    } else {
+                        import::csv::parse(&file)
+                    }
+                }
                 "qif" => import::qif::parse(&file),
                 "ofx" => import::ofx::parse(&file),
                 other => return Err(format!("unsupported format: {other}").into()),
@@ -275,4 +327,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CsvMapArgs;
+
+    #[test]
+    fn mapping_conversion_none() {
+        let args = CsvMapArgs::default();
+        assert!(args.into_mapping().is_none());
+    }
+
+    #[test]
+    fn mapping_conversion_values() {
+        let args = CsvMapArgs {
+            map_description: Some("desc".into()),
+            map_debit: Some("debit".into()),
+            map_credit: Some("credit".into()),
+            map_amount: Some("amount".into()),
+            map_currency: Some("curr".into()),
+        };
+        let mapping = args.into_mapping().unwrap();
+        assert_eq!(mapping.description, "desc");
+        assert_eq!(mapping.debit_account, "debit");
+        assert_eq!(mapping.credit_account, "credit");
+        assert_eq!(mapping.amount, "amount");
+        assert_eq!(mapping.currency, "curr");
+    }
 }
