@@ -21,17 +21,6 @@ Rust-based library that enables applications to interact with cloud-based spread
 - Google Cloud account with Sheets API enabled
 - OAuth2 credentials for Google Sheets API
 
-### Creating credentials.json
-1. Visit the [Google Cloud Console](https://console.cloud.google.com/) and create
-   or select a project.
-2. Enable the **Google Sheets API** for that project.
-3. Navigate to **APIs & Services > Credentials** and choose **Create
-   credentials > OAuth client ID**. Configure the consent screen if prompted and
-   select **Desktop app**.
-4. Download the resulting JSON file and save it as `credentials.json` in the
-   project root or another location of your choice.
-5. Reference this path in the `credentials_path` field of `config.toml`.
-
 ## Installation
 Add the following to your Cargo.toml:
 ```toml
@@ -147,7 +136,24 @@ the CLI.
 2. Determine your spreadsheet ID. Open the sheet in your browser and copy the
    portion of the URL between `/d/` and `/edit`, for example
    `https://docs.google.com/spreadsheets/d/<ID>/edit`.
-3. Add the following contents, replacing the placeholder values:
+
+3. Create credentials.json
+
+   1. Visit the [Google Cloud Console](https://console.cloud.google.com/) and create
+      or select a project.
+
+   2. Enable the **Google Sheets API** for that project.
+
+   3. Navigate to **APIs & Services > Credentials** and choose **Create
+      credentials > OAuth client ID**. Configure the consent screen if prompted and
+      select **Desktop app**.
+
+   4. Download the resulting JSON file and save it as `credentials.json` in the
+      project root or another location of your choice.
+
+   5. Reference this path in the `credentials_path` field of `config.toml`.
+
+5. Add the following contents, replacing the placeholder values:
    ```toml
    [google_sheets]
    credentials_path = "path_to_credentials.json"
@@ -155,7 +161,8 @@ the CLI.
    # optional: defaults to "Ledger"
    sheet_name = "Custom"
    ```
-4. Save the file. The CLI reads this configuration on startup and will use the
+
+6. Save the file. The CLI reads this configuration on startup and will use the
    specified `sheet_name` for all ledger operations.
 
 # 🧪 Running Tests
