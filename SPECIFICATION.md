@@ -13,7 +13,7 @@ This project provides a unified interface for applications to interact with clou
 # 3. Technical Stack
 
 - Programming Language: Rust, for its performance and safety.
-- API Integration: Utilize the google-sheets4 Rust crate for Google Sheets API interactions.
+- API Integration: Call the official Google Sheets REST API directly over HTTP, using `hyper` for the client implementation.
 - Authentication: Implement OAuth2 for secure user authentication and authorization.
 - Data Storage Format: Each record includes metadata such as timestamps and unique identifiers to maintain immutability.
 
