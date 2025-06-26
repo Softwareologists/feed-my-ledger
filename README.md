@@ -142,6 +142,7 @@ the CLI.
    ```bash
    $ touch config.toml
    ```
+
 2. Determine your spreadsheet ID. Open the sheet in your browser and copy the
    portion of the URL between `/d/` and `/edit`, for example
    `https://docs.google.com/spreadsheets/d/<ID>/edit`.
