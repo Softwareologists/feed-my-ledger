@@ -123,6 +123,12 @@ Switch to a different sheet by URL:
 $ cargo run --bin ledger -- switch --link "https://docs.google.com/spreadsheets/d/<ID>/edit"
 ```
 
+Import statements from existing files. Supported formats are **csv**, **qif**, and **ofx**:
+
+```bash
+$ cargo run --bin ledger -- import --format csv --file transactions.csv
+```
+
 # 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the
 binary. This file stores your OAuth credentials and the spreadsheet ID used by

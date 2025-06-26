@@ -70,6 +70,18 @@ let all = ledger.records("owner@example.com").unwrap();
 ledger.share_with("reader@example.com", Permission::Read).unwrap();
 ```
 
+### Importing statements
+
+Use the parsers in the `import` module to convert existing statements into `Record`s.
+Each parser returns a vector of records ready for insertion:
+
+```rust
+use rusty_ledger::import::{csv, ofx, qif};
+use std::path::Path;
+
+let records = csv::parse(Path::new("transactions.csv"))?;
+```
+
 ## API Overview
 
 ### Core
