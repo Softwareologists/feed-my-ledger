@@ -56,8 +56,8 @@ optionally specify the worksheet name when creating the adapter; otherwise, it
 defaults to `Ledger`:
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::{GoogleSheets4Adapter, HyperConnector};
-use google_sheets4::{hyper_rustls, hyper_util, yup_oauth2, Sheets};
+use rusty_ledger::cloud_adapters::GoogleSheets4Adapter;
+use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 async fn example() -> Result<(), Box<dyn std::error::Error>> {
     let secret = yup_oauth2::read_application_secret("client_secret.json").await?;
@@ -68,17 +68,7 @@ async fn example() -> Result<(), Box<dyn std::error::Error>> {
     .build()
     .await?;
 
-    let connector: HyperConnector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .https_or_http()
-        .enable_http1()
-        .build();
-    let client = hyper_util::client::legacy::Client::builder(
-        hyper_util::rt::TokioExecutor::new(),
-    )
-    .build(connector.clone());
-    let hub = Sheets::new(client, auth);
-    let mut service = GoogleSheets4Adapter::with_sheet_name(hub, "Custom");
+    let mut service = GoogleSheets4Adapter::with_sheet_name(auth, "Custom");
     let sheet_id = service.create_sheet("ledger")?;
     service.append_row(&sheet_id, vec!["hello".into()])?;
     Ok(())

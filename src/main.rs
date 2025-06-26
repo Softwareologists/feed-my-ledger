@@ -2,11 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use google_sheets4::{Sheets, hyper_rustls, hyper_util};
-use rusty_ledger::cloud_adapters::{
-    CloudSpreadsheetService,
-    google_sheets4::{GoogleSheets4Adapter, HyperClient, HyperConnector},
-};
+use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
 use rusty_ledger::core::Record;
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
@@ -190,18 +186,9 @@ async fn adapter_from_config(
         .build()
         .await?;
 
-    let connector: HyperConnector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()?
-        .https_or_http()
-        .enable_http1()
-        .build();
-    let client: HyperClient =
-        hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-            .build(connector.clone());
-    let hub = Sheets::new(client, auth);
     let adapter = match &cfg.sheet_name {
-        Some(name) => GoogleSheets4Adapter::with_sheet_name(hub, name.clone()),
-        None => GoogleSheets4Adapter::new(hub),
+        Some(name) => GoogleSheets4Adapter::with_sheet_name(auth, name.clone()),
+        None => GoogleSheets4Adapter::new(auth),
     };
     Ok(adapter)
 }
