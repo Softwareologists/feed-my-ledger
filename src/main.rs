@@ -77,12 +77,34 @@ enum Commands {
     },
 }
 
-fn load_config(path: &PathBuf) -> Config {
-    if let Ok(data) = fs::read_to_string(path) {
-        toml::from_str(&data).unwrap_or_default()
-    } else {
-        Config::default()
+#[derive(Debug)]
+enum CliError {
+    MissingConfig,
+    InvalidConfig(String),
+    MissingCredentials,
+}
+
+impl std::fmt::Display for CliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CliError::MissingConfig => write!(f, "config.toml file not found"),
+            CliError::InvalidConfig(msg) => write!(f, "invalid configuration: {msg}"),
+            CliError::MissingCredentials => write!(f, "credentials json file was not found"),
+        }
     }
+}
+
+impl std::error::Error for CliError {}
+
+fn load_config(path: &PathBuf) -> Result<Config, CliError> {
+    let data = fs::read_to_string(path).map_err(|_| CliError::MissingConfig)?;
+    let cfg: Config = toml::from_str(&data).map_err(|e| CliError::InvalidConfig(e.to_string()))?;
+    if cfg.google_sheets.credentials_path.is_empty() {
+        return Err(CliError::InvalidConfig(
+            "google_sheets.credentials_path is missing".to_string(),
+        ));
+    }
+    Ok(cfg)
 }
 
 fn save_config(path: &PathBuf, cfg: &Config) {
@@ -104,7 +126,14 @@ fn parse_sheet_id(input: &str) -> String {
 async fn adapter_from_config(
     cfg: &GoogleSheetsConfig,
 ) -> Result<GoogleSheets4Adapter, Box<dyn std::error::Error>> {
-    let secret = yup_oauth2::read_application_secret(&cfg.credentials_path).await?;
+    if !std::path::Path::new(&cfg.credentials_path).exists() {
+        return Err(Box::new(CliError::MissingCredentials));
+    }
+    let secret = yup_oauth2::read_application_secret(&cfg.credentials_path)
+        .await
+        .map_err(|e| {
+            Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
+        })?;
     let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::Interactive)
         .persist_tokens_to_disk("tokens.json")
         .build()
@@ -126,7 +155,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = tokio::runtime::Runtime::new()?;
     let cli = Cli::parse();
     let config_path = PathBuf::from("config.toml");
-    let mut cfg = load_config(&config_path);
+    let mut cfg =
+        load_config(&config_path).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     if matches!(cli.command, Commands::Login) {
         rt.block_on(rusty_ledger::cloud_adapters::auth::initial_oauth_login(

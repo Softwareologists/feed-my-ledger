@@ -19,8 +19,12 @@ pub enum RecordError {
 impl std::fmt::Display for RecordError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RecordError::SameAccount => write!(f, "debit and credit accounts must differ"),
-            RecordError::NonPositiveAmount => write!(f, "amount must be positive"),
+            RecordError::SameAccount => {
+                write!(f, "debit and credit accounts cannot be identical")
+            }
+            RecordError::NonPositiveAmount => {
+                write!(f, "transaction amount must be greater than zero")
+            }
         }
     }
 }
@@ -127,8 +131,12 @@ pub enum LedgerError {
 impl std::fmt::Display for LedgerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LedgerError::RecordNotFound => write!(f, "record not found"),
-            LedgerError::ImmutableRecord => write!(f, "records are immutable"),
+            LedgerError::RecordNotFound => {
+                write!(f, "record not found in ledger")
+            }
+            LedgerError::ImmutableRecord => {
+                write!(f, "records are immutable and cannot be modified")
+            }
         }
     }
 }
