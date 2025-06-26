@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: ["x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-pc-windows-gnu"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+      - name: Build
+        run: cross build --release --target ${{ matrix.target }}
+      - name: Strip
+        if: matrix.target != 'x86_64-pc-windows-gnu'
+        run: strip target/${{ matrix.target }}/release/rusty-ledger
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=rusty-ledger-${{ github.ref_name }}-${{ matrix.target }}
+          if [[ "${{ matrix.target }}" == *windows-gnu ]]; then
+            cp target/${{ matrix.target }}/release/rusty-ledger.exe $name.exe
+            7z a $name.zip $name.exe
+            sha256sum $name.zip > $name.zip.sha256
+            echo "archive=$name.zip" >> "$GITHUB_OUTPUT"
+            echo "checksum=$name.zip.sha256" >> "$GITHUB_OUTPUT"
+          else
+            cp target/${{ matrix.target }}/release/rusty-ledger $name
+            tar czf $name.tar.gz $name
+            sha256sum $name.tar.gz > $name.tar.gz.sha256
+            echo "archive=$name.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "checksum=$name.tar.gz.sha256" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            ${{ steps.package.outputs.archive }}
+            ${{ steps.package.outputs.checksum }}
+
+  release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/**
+          generate_release_notes: true
