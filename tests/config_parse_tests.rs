@@ -22,4 +22,6 @@ sheet_name = "Custom"
 "#;
     let cfg: Config = toml::from_str(toml).unwrap();
     assert_eq!(cfg.google_sheets.sheet_name.as_deref(), Some("Custom"));
+    assert_eq!(cfg.google_sheets.credentials_path, "cred.json");
+    assert_eq!(cfg.google_sheets.spreadsheet_id.as_deref(), Some("abc"));
 }
