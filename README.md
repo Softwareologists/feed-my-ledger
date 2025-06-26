@@ -126,10 +126,11 @@ $ cargo run --bin ledger -- switch --link "https://docs.google.com/spreadsheets/
 Import statements from existing files. Supported formats are **csv**, **qif**, and **ofx**:
 
 ```bash
-$ cargo run --bin ledger -- import --format csv --file transactions.csv
+$ cargo run --bin ledger -- import --format csv --file transactions.csv \
+    --map-description desc --map-debit debit --map-credit credit \
+    --map-amount value --map-currency curr
 ```
-To map custom column headers, construct a `CsvMapping` and call
-`csv::parse_with_mapping` in your code.
+Mapping flags override the default column names when importing CSV files.
 
 # 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the
