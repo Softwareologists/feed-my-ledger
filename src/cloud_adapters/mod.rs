@@ -31,14 +31,20 @@ pub enum SpreadsheetError {
 impl std::fmt::Display for SpreadsheetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SpreadsheetError::SheetNotFound => write!(f, "sheet not found"),
-            SpreadsheetError::RowNotFound => write!(f, "row not found"),
-            SpreadsheetError::ShareFailed => write!(f, "sharing failed"),
+            SpreadsheetError::SheetNotFound => {
+                write!(f, "spreadsheet not found: check the provided ID")
+            }
+            SpreadsheetError::RowNotFound => {
+                write!(f, "row not found at the specified index")
+            }
+            SpreadsheetError::ShareFailed => {
+                write!(f, "failed to share spreadsheet with the recipient")
+            }
             SpreadsheetError::Transient(msg) => {
                 write!(f, "temporary service error: {msg}. Please retry")
             }
-            SpreadsheetError::Permanent(msg) => write!(f, "{msg}"),
-            SpreadsheetError::Unknown => write!(f, "unknown error"),
+            SpreadsheetError::Permanent(msg) => write!(f, "service error: {msg}"),
+            SpreadsheetError::Unknown => write!(f, "an unknown error occurred"),
         }
     }
 }

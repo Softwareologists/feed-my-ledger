@@ -133,7 +133,8 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 "role": "writer",
                 "emailAddress": email,
             });
-            let body = serde_json::to_vec(&body_json).unwrap();
+            let body =
+                serde_json::to_vec(&body_json).expect("failed to serialize permission request");
             let req = Request::builder()
                 .method(Method::POST)
                 .uri(&drive_url)
@@ -142,7 +143,7 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 .header(CONTENT_TYPE, "application/json")
                 .header(CONTENT_LENGTH, body.len() as u64)
                 .body(google_sheets4::common::to_body(Some(body)))
-                .unwrap();
+                .expect("failed to build permission request");
 
             match self.hub.client.request(req).await {
                 Ok(res) if res.status().is_success() => Ok(()),

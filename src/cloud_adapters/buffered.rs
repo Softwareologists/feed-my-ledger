@@ -110,7 +110,9 @@ impl<S: CloudSpreadsheetService> CloudSpreadsheetService for BatchingCacheServic
         let batch = batches.entry(sheet_id.to_string()).or_default();
         batch.push(values);
         if batch.len() >= self.batch_size {
-            let rows = batches.remove(sheet_id).unwrap();
+            let rows = batches
+                .remove(sheet_id)
+                .expect("batch entry vanished during flush");
             drop(batches);
             self.inner.append_rows(sheet_id, rows)?;
         }

@@ -29,8 +29,13 @@ pub enum AuthError {
 impl std::fmt::Display for AuthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AuthError::InvalidCredentials => write!(f, "invalid credentials"),
-            AuthError::RefreshFailed => write!(f, "refresh failed"),
+            AuthError::InvalidCredentials => {
+                write!(
+                    f,
+                    "credentials were rejected by the authentication provider"
+                )
+            }
+            AuthError::RefreshFailed => write!(f, "unable to refresh OAuth token"),
             AuthError::Other(e) => write!(f, "{e}"),
         }
     }
@@ -152,7 +157,18 @@ pub async fn initial_oauth_login(
     use google_sheets4::api::Scope;
     use yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
-    let secret = yup_oauth2::read_application_secret(credentials_path).await?;
+    if !std::path::Path::new(credentials_path).exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "credentials json file was not found",
+        )
+        .into());
+    }
+    let secret = yup_oauth2::read_application_secret(credentials_path)
+        .await
+        .map_err(|e| {
+            Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
+        })?;
     let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::Interactive)
         .persist_tokens_to_disk(token_path)
         .build()
