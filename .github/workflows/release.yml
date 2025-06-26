@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+
+jobs:
+  build:
+    name: Build Binaries
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Build
+        run: cargo build --release --locked
+      - name: Strip
+        if: matrix.os != 'windows-latest'
+        run: strip target/release/rusty-ledger
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          name=rusty-ledger-${{ github.ref_name }}
+          if [[ "${{ matrix.os }}" == 'windows-latest' ]]; then
+            cp target/release/rusty-ledger.exe "$name.exe"
+            7z a "dist/$name-windows.zip" "$name.exe"
+            sha256sum "dist/$name-windows.zip" > "dist/$name-windows.zip.sha256"
+            echo "archive=dist/$name-windows.zip" >> "$GITHUB_OUTPUT"
+            echo "checksum=dist/$name-windows.zip.sha256" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ matrix.os }}" == 'macos-latest' ]]; then
+            cp target/release/rusty-ledger "$name"
+            tar czf "dist/$name-macos.tar.gz" "$name"
+            sha256sum "dist/$name-macos.tar.gz" > "dist/$name-macos.tar.gz.sha256"
+            echo "archive=dist/$name-macos.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "checksum=dist/$name-macos.tar.gz.sha256" >> "$GITHUB_OUTPUT"
+          else
+            cp target/release/rusty-ledger "$name"
+            tar czf "dist/$name-linux.tar.gz" "$name"
+            sha256sum "dist/$name-linux.tar.gz" > "dist/$name-linux.tar.gz.sha256"
+            echo "archive=dist/$name-linux.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "checksum=dist/$name-linux.tar.gz.sha256" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: |
+            ${{ steps.package.outputs.archive }}
+            ${{ steps.package.outputs.checksum }}
+
+  crate:
+    name: Package Crate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Build crate package
+        run: cargo package --allow-dirty --no-verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crate
+          path: target/package/*.crate
+
+  release:
+    name: Publish Release
+    needs: [build, crate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: dist/**
+          generate_release_notes: true
