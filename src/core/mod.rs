@@ -229,6 +229,20 @@ impl Ledger {
     pub fn delete_record(&mut self, _id: Uuid) -> Result<(), LedgerError> {
         Err(LedgerError::ImmutableRecord)
     }
+
+    /// Calculates the balance for the specified account by summing debits and
+    /// credits. Debits increase the balance while credits decrease it.
+    pub fn account_balance(&self, account: &str) -> f64 {
+        self.records.iter().fold(0.0, |mut acc, r| {
+            if r.debit_account == account {
+                acc += r.amount;
+            }
+            if r.credit_account == account {
+                acc -= r.amount;
+            }
+            acc
+        })
+    }
 }
 
 #[cfg(test)]
