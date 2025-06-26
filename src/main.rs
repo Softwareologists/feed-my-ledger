@@ -31,6 +31,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Perform OAuth login and store credentials
+    Login,
     /// Add a new record to the ledger
     Add {
         #[arg(long)]
@@ -126,6 +128,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = PathBuf::from("config.toml");
     let mut cfg = load_config(&config_path);
 
+    if matches!(cli.command, Commands::Login) {
+        rusty_ledger::cloud_adapters::auth::initial_oauth_login(
+            &cfg.google_sheets.credentials_path,
+            "tokens.json",
+        )
+        .await?;
+        println!("Login successful");
+        return Ok(());
+    }
+
     if let Commands::Switch { link } = &cli.command {
         let id = parse_sheet_id(link);
         cfg.google_sheets.spreadsheet_id = Some(id.clone());
@@ -199,7 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map_err(|e| format!("{e}"))?;
             println!("Shared with {email}");
         }
-        Commands::Switch { .. } => unreachable!(),
+        Commands::Switch { .. } | Commands::Login => unreachable!(),
     }
 
     Ok(())
