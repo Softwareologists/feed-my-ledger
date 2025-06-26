@@ -21,6 +21,17 @@ Rust-based library that enables applications to interact with cloud-based spread
 - Google Cloud account with Sheets API enabled
 - OAuth2 credentials for Google Sheets API
 
+### Creating credentials.json
+1. Visit the [Google Cloud Console](https://console.cloud.google.com/) and create
+   or select a project.
+2. Enable the **Google Sheets API** for that project.
+3. Navigate to **APIs & Services > Credentials** and choose **Create
+   credentials > OAuth client ID**. Configure the consent screen if prompted and
+   select **Desktop app**.
+4. Download the resulting JSON file and save it as `credentials.json` in the
+   project root or another location of your choice.
+5. Reference this path in the `credentials_path` field of `config.toml`.
+
 ## Installation
 Add the following to your Cargo.toml:
 ```toml
@@ -104,8 +115,6 @@ $ cargo run --bin ledger -- login
 Adjustments reference an existing record by ID:
 
 ```bash
-
-```bash
 $ cargo run --bin ledger -- adjust \
     --id <RECORD_ID> --description "Refund" \
     --debit expenses --credit cash \
@@ -125,12 +134,24 @@ $ cargo run --bin ledger -- switch --link "https://docs.google.com/spreadsheets/
 ```
 
 # 🛠️ Configuration
-Create a configuration file `config.toml` with the following content:
-```toml
-[google_sheets]
-credentials_path = "path_to_credentials.json"
-spreadsheet_id = "your_spreadsheet_id"
-```
+Rusty Ledger looks for a `config.toml` file in the same directory as the
+binary. This file stores your OAuth credentials and the spreadsheet ID used by
+the CLI.
+
+1. Create the file in your project root:
+   ```bash
+   $ touch config.toml
+   ```
+2. Determine your spreadsheet ID. Open the sheet in your browser and copy the
+   portion of the URL between `/d/` and `/edit`, for example
+   `https://docs.google.com/spreadsheets/d/<ID>/edit`.
+3. Add the following contents, replacing the placeholder values:
+   ```toml
+   [google_sheets]
+   credentials_path = "path_to_credentials.json"
+   spreadsheet_id = "<ID>"
+   ```
+4. Save the file. The CLI reads this configuration on startup.
 
 # 🧪 Running Tests
 ```bash
