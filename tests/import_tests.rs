@@ -44,3 +44,24 @@ fn ofx_parsing() {
     assert_eq!(records[0].amount, 7.0);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn csv_parsing_with_mapping() {
+    let data = "desc,credit,debit,value,curr\nCoffee,cash,expenses:food,4.20,USD\n";
+    let path = write_temp("test_map.csv", data);
+    let mapping = csv::CsvMapping {
+        description: "desc".into(),
+        debit_account: "debit".into(),
+        credit_account: "credit".into(),
+        amount: "value".into(),
+        currency: "curr".into(),
+    };
+    let records = csv::parse_with_mapping(&path, &mapping).unwrap();
+    assert_eq!(records.len(), 1);
+    let r = &records[0];
+    assert_eq!(r.description, "Coffee");
+    assert_eq!(r.debit_account, "expenses:food");
+    assert_eq!(r.credit_account, "cash");
+    assert_eq!(r.amount, 4.20);
+    let _ = std::fs::remove_file(path);
+}

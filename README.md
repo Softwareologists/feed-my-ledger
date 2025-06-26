@@ -128,6 +128,8 @@ Import statements from existing files. Supported formats are **csv**, **qif**, a
 ```bash
 $ cargo run --bin ledger -- import --format csv --file transactions.csv
 ```
+To map custom column headers, construct a `CsvMapping` and call
+`csv::parse_with_mapping` in your code.
 
 # 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the
