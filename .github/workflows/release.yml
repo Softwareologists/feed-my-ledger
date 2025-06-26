@@ -8,23 +8,27 @@ on:
 jobs:
   build:
     name: Build Binaries
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-gnu, x86_64-apple-darwin, x86_64-pc-windows-gnu]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross --locked
       - name: Build
-        run: cross build --release --target ${{ matrix.target }}
+        run: cargo build --release
       - name: Strip
-        if: matrix.target != 'x86_64-pc-windows-gnu'
-        run: strip target/${{ matrix.target }}/release/rusty-ledger
+        if: runner.os != 'Windows'
+        run: strip target/release/rusty-ledger
       - name: Package
         id: package
         shell: bash
@@ -32,8 +36,8 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           name=rusty-ledger-${{ github.ref_name }}-${{ matrix.target }}
-          bin=target/${{ matrix.target }}/release
-          if [[ "${{ matrix.target }}" == 'x86_64-pc-windows-gnu' ]]; then
+          bin=target/release
+          if [[ "$RUNNER_OS" == 'Windows' ]]; then
             cp "$bin/rusty-ledger.exe" "$name.exe"
             7z a "dist/$name.zip" "$name.exe"
             sha256sum "dist/$name.zip" > "dist/$name.zip.sha256"
