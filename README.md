@@ -95,6 +95,12 @@ $ cargo run --bin ledger -- add \
 $ cargo run --bin ledger -- list
 ```
 
+Before issuing API commands for the first time, authorize the application:
+
+```bash
+$ cargo run --bin ledger -- login
+```
+
 Adjustments reference an existing record by ID:
 
 ```bash

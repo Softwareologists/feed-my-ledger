@@ -143,3 +143,22 @@ impl<P: AuthProvider, S: TokenStore> AuthManager<P, S> {
         Ok(token)
     }
 }
+
+/// Perform the OAuth installed flow and persist tokens to disk.
+pub async fn initial_oauth_login(
+    credentials_path: &str,
+    token_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use google_sheets4::api::Scope;
+    use yup_oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
+
+    let secret = yup_oauth2::read_application_secret(credentials_path).await?;
+    let auth = InstalledFlowAuthenticator::builder(secret, InstalledFlowReturnMethod::Interactive)
+        .persist_tokens_to_disk(token_path)
+        .build()
+        .await?;
+    let _ = auth
+        .token(&[Scope::DriveFile.as_ref(), Scope::Spreadsheet.as_ref()])
+        .await?;
+    Ok(())
+}
