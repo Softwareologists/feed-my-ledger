@@ -155,7 +155,8 @@ the CLI.
    # optional: defaults to "Ledger"
    sheet_name = "Custom"
    ```
-4. Save the file. The CLI reads this configuration on startup.
+4. Save the file. The CLI reads this configuration on startup and will use the
+   specified `sheet_name` for all ledger operations.
 
 # 🧪 Running Tests
 ```bash

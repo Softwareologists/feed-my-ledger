@@ -15,6 +15,7 @@ use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 struct GoogleSheetsConfig {
     credentials_path: String,
     spreadsheet_id: Option<String>,
+    sheet_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -148,7 +149,11 @@ async fn adapter_from_config(
         hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
             .build(connector.clone());
     let hub = Sheets::new(client, auth);
-    Ok(GoogleSheets4Adapter::new(hub))
+    let adapter = match &cfg.sheet_name {
+        Some(name) => GoogleSheets4Adapter::with_sheet_name(hub, name.clone()),
+        None => GoogleSheets4Adapter::new(hub),
+    };
+    Ok(adapter)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
