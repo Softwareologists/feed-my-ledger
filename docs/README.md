@@ -7,3 +7,4 @@ This directory contains detailed documentation for the Rusty Ledger project. The
 - [Public API Usage](api_usage.md)
 - [Authentication Integration](authentication.md)
 - [Extending Cloud Service Support](extending_cloud_support.md)
+- [Release Process](release.md)
