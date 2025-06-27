@@ -13,6 +13,10 @@ pub mod query;
 pub use query::{ParseError as QueryParseError, Query};
 pub mod account;
 pub use account::Account;
+pub mod budget;
+pub mod scheduler;
+pub use budget::{Budget, BudgetBook, Period};
+pub use scheduler::{RecordTemplate, ScheduleEntry, Scheduler};
 
 /// Errors that can occur when creating a [`Record`].
 #[derive(Debug, Clone, PartialEq, Eq)]

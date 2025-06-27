@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
-use rusty_ledger::core::{Account, Ledger, PriceDatabase, Query, Record};
+use rusty_ledger::core::{
+    Account, Budget, BudgetBook, Ledger, Period, PriceDatabase, Query, Record,
+};
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -19,8 +21,30 @@ struct GoogleSheetsConfig {
 }
 
 #[derive(Serialize, Deserialize, Default)]
+struct BudgetConfig {
+    account: String,
+    amount: f64,
+    currency: String,
+    period: String,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct ScheduleConfig {
+    cron: String,
+    description: String,
+    debit: String,
+    credit: String,
+    amount: f64,
+    currency: String,
+}
+
+#[derive(Serialize, Deserialize, Default)]
 struct Config {
     google_sheets: GoogleSheetsConfig,
+    #[serde(default)]
+    budgets: Vec<BudgetConfig>,
+    #[serde(default)]
+    schedules: Vec<ScheduleConfig>,
 }
 
 #[derive(Args, Debug, Default)]
@@ -71,7 +95,51 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+enum BudgetCommands {
+    Add {
+        #[arg(long)]
+        account: String,
+        #[arg(long)]
+        amount: f64,
+        #[arg(long)]
+        currency: String,
+        #[arg(long, default_value = "monthly")]
+        period: String,
+    },
+    Report {
+        #[arg(long)]
+        account: String,
+        #[arg(long)]
+        year: i32,
+        #[arg(long)]
+        month: Option<u32>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ScheduleCommands {
+    Add {
+        #[arg(long)]
+        cron: String,
+        #[arg(long)]
+        description: String,
+        #[arg(long)]
+        debit: String,
+        #[arg(long)]
+        credit: String,
+        #[arg(long)]
+        amount: f64,
+        #[arg(long)]
+        currency: String,
+    },
+}
+
+#[derive(Subcommand)]
 enum Commands {
+    #[command(subcommand)]
+    Budget(BudgetCommands),
+    #[command(subcommand)]
+    Schedule(ScheduleCommands),
     /// Perform OAuth login and store credentials
     Login,
     /// Add a new record to the ledger
@@ -283,6 +351,84 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     match cli.command {
+        Commands::Budget(BudgetCommands::Add {
+            account,
+            amount,
+            currency,
+            period,
+        }) => {
+            cfg.budgets.push(BudgetConfig {
+                account,
+                amount,
+                currency,
+                period,
+            });
+            save_config(&config_path, &cfg);
+            println!("Budget added");
+        }
+        Commands::Budget(BudgetCommands::Report {
+            account,
+            year,
+            month,
+        }) => {
+            let rows = adapter.list_rows(&sheet_id)?;
+            let mut ledger = Ledger::default();
+            for row in rows {
+                if let Some(rec) = record_from_row(&row) {
+                    ledger.commit(rec);
+                }
+            }
+            let prices = if Path::new("prices.csv").exists() {
+                PriceDatabase::from_csv(Path::new("prices.csv"))?
+            } else {
+                PriceDatabase::default()
+            };
+            let mut book = BudgetBook::default();
+            for b in &cfg.budgets {
+                book.add(
+                    Budget {
+                        account: b.account.parse()?,
+                        amount: b.amount,
+                        currency: b.currency.clone(),
+                        period: if b.period.to_lowercase() == "yearly" {
+                            Period::Yearly
+                        } else {
+                            Period::Monthly
+                        },
+                    },
+                    Some(year),
+                    month,
+                );
+            }
+            let acc: Account = account.parse()?;
+            let diff = if let Some(m) = month {
+                book.compare_month(&ledger, &prices, &acc, year, m)
+            } else {
+                book.compare_year(&ledger, &prices, &acc, year)
+            };
+            if let Some(d) = diff {
+                println!("{d}");
+            }
+        }
+        Commands::Schedule(ScheduleCommands::Add {
+            cron,
+            description,
+            debit,
+            credit,
+            amount,
+            currency,
+        }) => {
+            cfg.schedules.push(ScheduleConfig {
+                cron,
+                description,
+                debit,
+                credit,
+                amount,
+                currency,
+            });
+            save_config(&config_path, &cfg);
+            println!("Schedule added");
+        }
         Commands::Add {
             description,
             debit,
