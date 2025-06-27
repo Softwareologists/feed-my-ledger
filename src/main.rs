@@ -194,6 +194,12 @@ enum Commands {
         #[command(flatten)]
         mapping: CsvMapArgs,
     },
+    #[cfg(feature = "bank-api")]
+    /// Download and import OFX data from a URL
+    Download {
+        #[arg(long)]
+        url: String,
+    },
     /// Display the balance for an account
     Balance {
         #[arg(long)]
@@ -546,8 +552,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 "qif" => import::qif::parse(&file),
                 "ofx" => import::ofx::parse(&file),
+                "ledger" => import::ledger::parse(&file),
+                "json" => import::json::parse(&file),
                 other => return Err(format!("unsupported format: {other}").into()),
             }?;
+            for rec in records {
+                adapter.append_row(&sheet_id, rec.to_row())?;
+            }
+        }
+        #[cfg(feature = "bank-api")]
+        Commands::Download { url } => {
+            let records = rt.block_on(import::ofx::download(&url))?;
             for rec in records {
                 adapter.append_row(&sheet_id, rec.to_row())?;
             }
@@ -603,6 +618,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "csv" => import::csv::parse(&file),
                 "qif" => import::qif::parse(&file),
                 "ofx" => import::ofx::parse(&file),
+                "ledger" => import::ledger::parse(&file),
+                "json" => import::json::parse(&file),
                 other => return Err(format!("unsupported format: {other}").into()),
             }?;
             let rows = adapter.list_rows(&sheet_id)?;

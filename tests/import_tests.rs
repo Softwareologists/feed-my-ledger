@@ -1,4 +1,4 @@
-use rusty_ledger::import::{csv, ofx, qif};
+use rusty_ledger::import::{csv, json, ledger, ofx, qif};
 use std::fs::write;
 
 fn write_temp(name: &str, content: &str) -> std::path::PathBuf {
@@ -75,4 +75,21 @@ fn csv_parsing_with_mapping() {
     assert_eq!(r.credit_account.to_string(), "cash");
     assert_eq!(r.amount, 4.20);
     let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn ledger_and_json_roundtrip() {
+    let ledger_text = "2024-01-01 Coffee\n    expenses:food  5.00 USD\n    cash\n";
+    let lpath = write_temp("test.ledger", ledger_text);
+    let records = ledger::parse(&lpath).unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].description, "Coffee");
+
+    let jpath = write_temp("test.json", "");
+    json::export(&jpath, &records).unwrap();
+    let loaded = json::parse(&jpath).unwrap();
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].description, "Coffee");
+    let _ = std::fs::remove_file(lpath);
+    let _ = std::fs::remove_file(jpath);
 }
