@@ -9,6 +9,7 @@ use rusty_ledger::core::{
 };
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::str::FromStr;
 use uuid::Uuid;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
@@ -212,6 +213,13 @@ enum Commands {
         #[arg(long)]
         link: String,
     },
+    /// Reconcile ledger records with a statement file
+    Reconcile {
+        #[arg(long)]
+        file: PathBuf,
+        #[arg(long)]
+        format: Option<String>,
+    },
 }
 
 #[derive(Debug)]
@@ -261,7 +269,7 @@ fn parse_sheet_id(input: &str) -> String {
 }
 
 fn record_from_row(row: &[String]) -> Option<Record> {
-    if row.len() < 10 {
+    if row.len() < 10 || row.first().map(|s| s.as_str()) == Some("status") {
         return None;
     }
 
@@ -289,7 +297,18 @@ fn record_from_row(row: &[String]) -> Option<Record> {
         } else {
             row[9].split(',').map(|s| s.to_string()).collect()
         },
+        cleared: false,
     })
+}
+
+fn status_from_row(row: &[String]) -> Option<(Uuid, bool)> {
+    if row.len() >= 3 && row.first().map(|s| s.as_str()) == Some("status") {
+        let id = Uuid::parse_str(&row[1]).ok()?;
+        let cleared = row[2].parse::<bool>().ok()?;
+        Some((id, cleared))
+    } else {
+        None
+    }
 }
 
 async fn adapter_from_config(
@@ -569,6 +588,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let db = PriceDatabase::from_csv(path)?;
                 for (date, from, to, rate) in db.all_rates() {
                     println!("{date} {from}->{to} {rate}");
+                }
+            }
+        }
+        Commands::Reconcile { file, format } => {
+            let fmt = format
+                .or_else(|| {
+                    file.extension()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                })
+                .ok_or_else(|| "could not determine file format".to_string())?;
+            let statements = match fmt.to_lowercase().as_str() {
+                "csv" => import::csv::parse(&file),
+                "qif" => import::qif::parse(&file),
+                "ofx" => import::ofx::parse(&file),
+                other => return Err(format!("unsupported format: {other}").into()),
+            }?;
+            let rows = adapter.list_rows(&sheet_id)?;
+            let mut ledger = Ledger::default();
+            let mut statuses: HashMap<Uuid, bool> = HashMap::new();
+            for row in rows {
+                if let Some(rec) = record_from_row(&row) {
+                    ledger.commit(rec);
+                } else if let Some((id, cleared)) = status_from_row(&row) {
+                    statuses.insert(id, cleared);
+                }
+            }
+            for rec in ledger.records() {
+                let mut matched = false;
+                for stmt in &statements {
+                    if stmt.description == rec.description
+                        && (stmt.amount - rec.amount).abs() < f64::EPSILON
+                    {
+                        matched = true;
+                        break;
+                    }
+                }
+                if statuses.get(&rec.id).copied() != Some(matched) {
+                    adapter.append_row(
+                        &sheet_id,
+                        vec!["status".into(), rec.id.to_string(), matched.to_string()],
+                    )?;
                 }
             }
         }

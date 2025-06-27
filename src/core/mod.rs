@@ -70,6 +70,9 @@ pub struct Record {
     pub external_reference: Option<String>,
     /// Tags for categorizing the transaction.
     pub tags: Vec<String>,
+    /// Whether the record has been reconciled with a statement line.
+    #[serde(default)]
+    pub cleared: bool,
 }
 
 impl Record {
@@ -106,6 +109,7 @@ impl Record {
             reference_id,
             external_reference,
             tags,
+            cleared: false,
         })
     }
 
@@ -134,6 +138,15 @@ impl Record {
                 .unwrap_or_default(),
             self.external_reference.clone().unwrap_or_default(),
             self.tags.join(","),
+        ]
+    }
+
+    /// Converts the cleared status into a row for spreadsheet storage.
+    pub fn status_row(&self) -> Vec<String> {
+        vec![
+            "status".to_string(),
+            self.id.to_string(),
+            self.cleared.to_string(),
         ]
     }
 }
