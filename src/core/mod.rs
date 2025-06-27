@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 pub mod sharing;
 pub use sharing::{AccessError, Permission, SharedLedger};
+pub mod prices;
+pub use prices::PriceDatabase;
 pub mod query;
 pub use query::{ParseError as QueryParseError, Query};
 
@@ -234,13 +236,21 @@ impl Ledger {
 
     /// Calculates the balance for the specified account by summing debits and
     /// credits. Debits increase the balance while credits decrease it.
-    pub fn account_balance(&self, account: &str) -> f64 {
+    pub fn account_balance(&self, account: &str, target: &str, prices: &PriceDatabase) -> f64 {
         self.records.iter().fold(0.0, |mut acc, r| {
+            let mut amount = r.amount;
+            if r.currency != target {
+                if let Some(rate) = prices.get_rate(r.timestamp.date_naive(), &r.currency, target) {
+                    amount *= rate;
+                } else {
+                    return acc;
+                }
+            }
             if r.debit_account == account {
-                acc += r.amount;
+                acc += amount;
             }
             if r.credit_account == account {
-                acc -= r.amount;
+                acc -= amount;
             }
             acc
         })
