@@ -161,6 +161,20 @@ the CLI.
    spreadsheet_id = "<ID>"
    # optional: defaults to "Ledger"
    sheet_name = "Custom"
+
+    [[budgets]]
+    account = "expenses:food"
+    amount = 200.0
+    currency = "USD"
+    period = "monthly"
+
+    [[schedules]]
+    cron = "0 0 1 * *"
+    description = "rent"
+    debit = "expenses:rent"
+    credit = "cash"
+    amount = 1000.0
+    currency = "USD"
    ```
 
 6. Save the file. The CLI reads this configuration on startup and will use the
