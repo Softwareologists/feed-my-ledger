@@ -115,7 +115,7 @@ Switch to a different sheet by URL:
 $ cargo run --bin ledger -- switch --link "https://docs.google.com/spreadsheets/d/<ID>/edit"
 ```
 
-Import statements from existing files. Supported formats are **csv**, **qif**, and **ofx**:
+Import statements from existing files. Supported formats are **csv**, **qif**, **ofx**, **ledger**, and **json**:
 
 ```bash
 $ cargo run --bin ledger -- import --format csv --file transactions.csv \
@@ -123,6 +123,19 @@ $ cargo run --bin ledger -- import --format csv --file transactions.csv \
     --map-amount value --map-currency curr
 ```
 Mapping flags override the default column names when importing CSV files.
+
+Ledger text and JSON formats can also be imported:
+
+```bash
+$ cargo run --bin ledger -- import --format ledger --file statement.ledger
+$ cargo run --bin ledger -- import --format json --file data.json
+```
+
+When compiled with the `bank-api` feature, you can download statements directly:
+
+```bash
+$ cargo run --bin ledger -- download --url "https://bank.example.com/statement.ofx"
+```
 
 # 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the

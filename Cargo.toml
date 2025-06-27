@@ -18,5 +18,8 @@ csv = "1"
 iso_currency = "0.5"
 cron = "0.12"
 
+[features]
+bank-api = []
+
 [dev-dependencies]
 wiremock = "0.6"

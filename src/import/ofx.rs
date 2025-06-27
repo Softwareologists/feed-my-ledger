@@ -11,7 +11,7 @@ impl OfxImporter {
         Self::parse_str(&content)
     }
 
-    fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
+    pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
         let mut records = Vec::new();
         let mut remaining = input;
         while let Some(start) = remaining.find("<STMTTRN>") {
@@ -68,4 +68,32 @@ impl StatementImporter for OfxImporter {
 
 pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     OfxImporter::parse(path)
+}
+
+pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
+    OfxImporter::parse_str(input)
+}
+
+#[cfg(feature = "bank-api")]
+pub async fn download(url: &str) -> Result<Vec<Record>, ImportError> {
+    use hyper::{Client, body::to_bytes};
+    use hyper_rustls::HttpsConnectorBuilder;
+    let https = HttpsConnectorBuilder::new()
+        .with_native_roots()
+        .https_or_http()
+        .enable_http1()
+        .build();
+    let client = Client::builder().build::<_, hyper::Body>(https);
+    let uri: hyper::Uri = url
+        .parse::<hyper::Uri>()
+        .map_err(|e| ImportError::Parse(e.to_string()))?;
+    let res = client
+        .get(uri)
+        .await
+        .map_err(|e| ImportError::Io(std::io::Error::other(e)))?;
+    let bytes = to_bytes(res.into_body())
+        .await
+        .map_err(|e| ImportError::Io(std::io::Error::other(e)))?;
+    let text = String::from_utf8(bytes.to_vec()).map_err(|e| ImportError::Parse(e.to_string()))?;
+    parse_str(&text)
 }
