@@ -226,6 +226,11 @@ enum Commands {
         #[arg(long)]
         format: Option<String>,
     },
+    /// Execute a Rhai script against the current ledger
+    RunScript {
+        #[arg(long)]
+        file: PathBuf,
+    },
 }
 
 #[derive(Debug)]
@@ -649,6 +654,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )?;
                 }
             }
+        }
+        Commands::RunScript { file } => {
+            let rows = adapter.list_rows(&sheet_id)?;
+            let mut ledger = Ledger::default();
+            for row in rows {
+                if let Some(rec) = record_from_row(&row) {
+                    ledger.commit(rec);
+                }
+            }
+            let script = std::fs::read_to_string(file)?;
+            let result = rusty_ledger::script::run_script(&script, &ledger)?;
+            println!("{}", result);
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),
     }
