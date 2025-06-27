@@ -11,8 +11,8 @@ fn reader_cannot_write() {
 
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -35,8 +35,8 @@ fn writer_can_write() {
 
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         2.0,
         "USD".into(),
         None,
@@ -57,8 +57,8 @@ fn access_is_required_for_reads() {
 
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         3.0,
         "USD".into(),
         None,

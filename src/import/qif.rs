@@ -45,8 +45,8 @@ impl QifImporter {
                     };
                     let rec = Record::new(
                         desc,
-                        debit,
-                        credit,
+                        debit.parse().unwrap(),
+                        credit.parse().unwrap(),
                         a.abs(),
                         "USD".into(),
                         None,

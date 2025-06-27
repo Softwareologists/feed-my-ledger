@@ -130,8 +130,12 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             id,
             timestamp,
             description: row[2].clone(),
-            debit_account: row[3].clone(),
-            credit_account: row[4].clone(),
+            debit_account: row[3]
+                .parse()
+                .map_err(|e| SpreadsheetError::Permanent(format!("invalid account: {e}")))?,
+            credit_account: row[4]
+                .parse()
+                .map_err(|e| SpreadsheetError::Permanent(format!("invalid account: {e}")))?,
             amount,
             currency: row[6].clone(),
             reference_id,

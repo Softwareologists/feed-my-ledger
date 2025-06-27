@@ -79,8 +79,9 @@ impl Query {
             }
         }
         if !self.accounts.is_empty()
-            && !self.accounts.contains(&rec.debit_account)
-            && !self.accounts.contains(&rec.credit_account)
+            && !self.accounts.iter().any(|a| {
+                a == &rec.debit_account.to_string() || a == &rec.credit_account.to_string()
+            })
         {
             return false;
         }
@@ -115,8 +116,8 @@ mod tests {
         let mut ledger = Ledger::default();
         let mut rec = Record::new(
             "coffee".into(),
-            "expenses".into(),
-            "cash".into(),
+            "expenses".parse().unwrap(),
+            "cash".parse().unwrap(),
             3.0,
             "USD".into(),
             None,
@@ -128,8 +129,8 @@ mod tests {
         ledger.commit(rec);
         let mut rec2 = Record::new(
             "rent".into(),
-            "expenses".into(),
-            "cash".into(),
+            "expenses".parse().unwrap(),
+            "cash".parse().unwrap(),
             100.0,
             "USD".into(),
             None,

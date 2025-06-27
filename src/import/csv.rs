@@ -56,10 +56,20 @@ impl CsvImporter {
                 .ok_or_else(|| ImportError::Parse("missing amount".into()))?
                 .parse::<f64>()
                 .map_err(|e: std::num::ParseFloatError| ImportError::Parse(e.to_string()))?;
+            let debit_acc = row
+                .get(debit_idx)
+                .unwrap_or_default()
+                .parse()
+                .map_err(|_| ImportError::Parse("invalid account".into()))?;
+            let credit_acc = row
+                .get(credit_idx)
+                .unwrap_or_default()
+                .parse()
+                .map_err(|_| ImportError::Parse("invalid account".into()))?;
             let rec = Record::new(
                 row.get(desc_idx).unwrap_or_default().to_string(),
-                row.get(debit_idx).unwrap_or_default().to_string(),
-                row.get(credit_idx).unwrap_or_default().to_string(),
+                debit_acc,
+                credit_acc,
                 amount_val,
                 row.get(currency_idx).unwrap_or_default().to_string(),
                 None,

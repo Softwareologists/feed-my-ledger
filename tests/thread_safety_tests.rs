@@ -20,8 +20,8 @@ fn concurrent_commits() {
         handles.push(thread::spawn(move || {
             let record = Record::new(
                 "desc".into(),
-                "cash".into(),
-                "revenue".into(),
+                "cash".parse().unwrap(),
+                "revenue".parse().unwrap(),
                 1.0,
                 "USD".into(),
                 None,
