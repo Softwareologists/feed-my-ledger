@@ -4,9 +4,10 @@ use std::path::PathBuf;
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
-use rusty_ledger::core::Record;
+use rusty_ledger::core::{Ledger, Query, Record};
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use uuid::Uuid;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
@@ -88,6 +89,11 @@ enum Commands {
     },
     /// List all rows in the active sheet
     List,
+    /// Display a register of records
+    Register {
+        #[arg(long)]
+        query: Option<String>,
+    },
     /// Apply an adjustment referencing an existing record
     Adjust {
         #[arg(long)]
@@ -123,6 +129,8 @@ enum Commands {
     Balance {
         #[arg(long)]
         account: String,
+        #[arg(long)]
+        query: Option<String>,
     },
     /// Switch active sheet using a link or ID
     Switch {
@@ -293,6 +301,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", row.join(" | "));
             }
         }
+        Commands::Register { query } => {
+            let rows = adapter.list_rows(&sheet_id)?;
+            let mut ledger = Ledger::default();
+            for row in rows {
+                if let Some(rec) = record_from_row(&row) {
+                    ledger.commit(rec);
+                }
+            }
+            let q = match query {
+                Some(expr) => Query::from_str(&expr)?,
+                None => Query::default(),
+            };
+            for rec in q.filter(&ledger) {
+                println!(
+                    "{} | {} | {} | {} | {}",
+                    rec.timestamp.to_rfc3339(),
+                    rec.debit_account,
+                    rec.credit_account,
+                    rec.amount,
+                    rec.description
+                );
+            }
+        }
         Commands::Adjust {
             id,
             description,
@@ -349,17 +380,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 adapter.append_row(&sheet_id, rec.to_row())?;
             }
         }
-        Commands::Balance { account } => {
+        Commands::Balance { account, query } => {
             let rows = adapter.list_rows(&sheet_id)?;
-            let mut balance = 0.0;
+            let mut ledger = Ledger::default();
             for row in rows {
                 if let Some(rec) = record_from_row(&row) {
-                    if rec.debit_account == account {
-                        balance += rec.amount;
-                    }
-                    if rec.credit_account == account {
-                        balance -= rec.amount;
-                    }
+                    ledger.commit(rec);
+                }
+            }
+            let mut q = match query {
+                Some(expr) => Query::from_str(&expr)?,
+                None => Query::default(),
+            };
+            q.accounts.push(account.clone());
+            let mut balance = 0.0;
+            for rec in q.filter(&ledger) {
+                if rec.debit_account == account {
+                    balance += rec.amount;
+                }
+                if rec.credit_account == account {
+                    balance -= rec.amount;
                 }
             }
             println!("{balance}");

@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 pub mod sharing;
 pub use sharing::{AccessError, Permission, SharedLedger};
+pub mod query;
+pub use query::{ParseError as QueryParseError, Query};
 
 /// Errors that can occur when creating a [`Record`].
 #[derive(Debug, Clone, PartialEq, Eq)]
