@@ -17,6 +17,7 @@ yup-oauth2 = "12"
 csv = "1"
 iso_currency = "0.5"
 cron = "0.12"
+rhai = "1"
 
 [features]
 bank-api = []

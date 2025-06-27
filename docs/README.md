@@ -8,3 +8,4 @@ This directory contains detailed documentation for the Rusty Ledger project. The
 - [Authentication Integration](authentication.md)
 - [Extending Cloud Service Support](extending_cloud_support.md)
 - [Release Process](release.md)
+- [Scripting Examples](scripting.md)
