@@ -1,4 +1,5 @@
-use rusty_ledger::core::{Ledger, LedgerError, Record, RecordError};
+use chrono::{NaiveDate, TimeZone, Utc};
+use rusty_ledger::core::{Ledger, LedgerError, PriceDatabase, Record, RecordError};
 use uuid::Uuid;
 
 #[test]
@@ -298,8 +299,9 @@ fn account_balance_after_commits() {
         .unwrap(),
     );
 
-    assert_eq!(ledger.account_balance("cash"), 5.0);
-    assert_eq!(ledger.account_balance("revenue"), -5.0);
+    let prices = PriceDatabase::default();
+    assert_eq!(ledger.account_balance("cash", "USD", &prices), 5.0);
+    assert_eq!(ledger.account_balance("revenue", "USD", &prices), -5.0);
 }
 
 #[test]
@@ -347,6 +349,46 @@ fn account_balance_with_adjustments() {
     .unwrap();
     ledger.apply_adjustment(adj1_id, adj2).unwrap();
 
-    assert_eq!(ledger.account_balance("cash"), 9.0);
-    assert_eq!(ledger.account_balance("revenue"), -9.0);
+    let prices = PriceDatabase::default();
+    assert_eq!(ledger.account_balance("cash", "USD", &prices), 9.0);
+    assert_eq!(ledger.account_balance("revenue", "USD", &prices), -9.0);
+}
+
+#[test]
+fn account_balance_converts_currencies() {
+    let mut ledger = Ledger::default();
+    let mut eur = Record::new(
+        "eur".into(),
+        "cash".into(),
+        "rev".into(),
+        10.0,
+        "EUR".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    eur.timestamp = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+    ledger.commit(eur);
+    let mut usd = Record::new(
+        "usd".into(),
+        "cash".into(),
+        "rev".into(),
+        10.0,
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    usd.timestamp = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+    ledger.commit(usd);
+
+    let mut prices = PriceDatabase::default();
+    let date = NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    prices.add_rate(date, "EUR", "USD", 2.0);
+    prices.add_rate(date, "USD", "EUR", 0.5);
+
+    assert_eq!(ledger.account_balance("cash", "USD", &prices), 30.0);
+    assert_eq!(ledger.account_balance("cash", "EUR", &prices), 15.0);
 }

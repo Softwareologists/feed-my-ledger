@@ -1,10 +1,10 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
-use rusty_ledger::core::{Ledger, Query, Record};
+use rusty_ledger::core::{Ledger, PriceDatabase, Query, Record};
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -132,6 +132,13 @@ enum Commands {
         #[arg(long)]
         query: Option<String>,
     },
+    /// Import price data from a CSV file
+    ImportPrices {
+        #[arg(long)]
+        file: PathBuf,
+    },
+    /// List loaded prices
+    ListPrices,
     /// Switch active sheet using a link or ID
     Switch {
         #[arg(long)]
@@ -403,6 +410,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             println!("{balance}");
+        }
+        Commands::ImportPrices { file } => {
+            let db = PriceDatabase::from_csv(&file)?;
+            db.to_csv(Path::new("prices.csv"))?;
+            println!("Imported {} prices", db.all_rates().len());
+        }
+        Commands::ListPrices => {
+            let path = Path::new("prices.csv");
+            if path.exists() {
+                let db = PriceDatabase::from_csv(path)?;
+                for (date, from, to, rate) in db.all_rates() {
+                    println!("{date} {from}->{to} {rate}");
+                }
+            }
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),
     }

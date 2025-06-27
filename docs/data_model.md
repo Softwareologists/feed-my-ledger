@@ -12,3 +12,5 @@ A ledger entry is represented by the `Record` struct. Important fields include:
 - `tags` – Free form strings used for categorisation.
 
 Records are immutable after being committed to the ledger. Adjustments are stored as new records referencing the original entry.
+
+Currency conversion is handled by a separate `PriceDatabase`. Rates are keyed by date and currency pair. When requesting a balance in a target currency the ledger converts each matching record using the latest rate available on or before the record date.
