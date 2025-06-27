@@ -45,6 +45,7 @@ pub struct SharedLedger<S: CloudSpreadsheetService> {
     ledger: Mutex<Ledger>,
     service: Mutex<S>,
     sheet_id: String,
+    statuses: Mutex<HashMap<Uuid, bool>>,
     permissions: Mutex<HashMap<String, Permission>>,
 }
 
@@ -57,6 +58,7 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             ledger: Mutex::new(Ledger::default()),
             service: Mutex::new(service),
             sheet_id,
+            statuses: Mutex::new(HashMap::new()),
             permissions: Mutex::new(permissions),
         })
     }
@@ -69,7 +71,8 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
     ) -> Result<Self, SpreadsheetError> {
         let sheet_id = sheet_id.into();
         let mut ledger = Ledger::default();
-        Self::load_existing_rows(&service, &mut ledger, &sheet_id)?;
+        let mut statuses = HashMap::new();
+        Self::load_existing_rows(&service, &mut ledger, &mut statuses, &sheet_id)?;
 
         let mut permissions = HashMap::new();
         permissions.insert(owner.to_string(), Permission::Write);
@@ -77,6 +80,7 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             ledger: Mutex::new(ledger),
             service: Mutex::new(service),
             sheet_id,
+            statuses: Mutex::new(statuses),
             permissions: Mutex::new(permissions),
         })
     }
@@ -84,10 +88,21 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
     fn load_existing_rows(
         service: &S,
         ledger: &mut Ledger,
+        statuses: &mut HashMap<Uuid, bool>,
         sheet_id: &str,
     ) -> Result<(), SpreadsheetError> {
         let rows = service.list_rows(sheet_id)?;
         for row in rows {
+            if row.first().map(|s| s.as_str()) == Some("status") {
+                if row.len() >= 3 {
+                    if let Ok(id) = uuid::Uuid::parse_str(&row[1]) {
+                        if let Ok(c) = row[2].parse::<bool>() {
+                            statuses.insert(id, c);
+                        }
+                    }
+                }
+                continue;
+            }
             let rec = Self::record_from_row(&row)?;
             ledger.commit(rec);
         }
@@ -141,6 +156,7 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             reference_id,
             external_reference,
             tags,
+            cleared: false,
         })
     }
 
@@ -179,24 +195,40 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         self.ledger
             .lock()
             .expect("ledger mutex poisoned")
-            .commit(record);
+            .commit(record.clone());
+        self.statuses
+            .lock()
+            .expect("statuses mutex poisoned")
+            .insert(record.id, record.cleared);
         Ok(())
     }
 
     pub fn get_record(&self, user: &str, id: Uuid) -> Result<Record, AccessError> {
         self.check(user, Permission::Read)?;
-        self.ledger
+        let mut record = self
+            .ledger
             .lock()
             .expect("ledger mutex poisoned")
             .get_record(id)
             .cloned()
-            .map_err(AccessError::Ledger)
+            .map_err(AccessError::Ledger)?;
+        let statuses = self.statuses.lock().expect("statuses mutex poisoned");
+        record.cleared = *statuses.get(&id).unwrap_or(&false);
+        Ok(record)
     }
 
     pub fn records(&self, user: &str) -> Result<Vec<Record>, AccessError> {
         self.check(user, Permission::Read)?;
         let ledger = self.ledger.lock().expect("ledger mutex poisoned");
-        Ok(ledger.records().cloned().collect())
+        let statuses = self.statuses.lock().expect("statuses mutex poisoned");
+        Ok(ledger
+            .records()
+            .map(|r| {
+                let mut rec = r.clone();
+                rec.cleared = *statuses.get(&rec.id).unwrap_or(&false);
+                rec
+            })
+            .collect())
     }
 
     pub fn apply_adjustment(
@@ -211,5 +243,38 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             .expect("ledger mutex poisoned")
             .apply_adjustment(original_id, adjustment)
             .map_err(AccessError::Ledger)
+    }
+
+    pub fn set_cleared(&self, user: &str, id: Uuid, cleared: bool) -> Result<(), AccessError> {
+        self.check(user, Permission::Write)?;
+        {
+            let mut service = self.service.lock().expect("service mutex poisoned");
+            service
+                .append_row(
+                    &self.sheet_id,
+                    vec!["status".into(), id.to_string(), cleared.to_string()],
+                )
+                .map_err(|_| AccessError::ShareFailed)?;
+        }
+        self.statuses
+            .lock()
+            .expect("statuses mutex poisoned")
+            .insert(id, cleared);
+        Ok(())
+    }
+
+    pub fn mark_cleared(&self, user: &str, id: Uuid) -> Result<(), AccessError> {
+        self.set_cleared(user, id, true)
+    }
+
+    pub fn mark_pending(&self, user: &str, id: Uuid) -> Result<(), AccessError> {
+        self.set_cleared(user, id, false)
+    }
+
+    pub fn into_parts(self) -> (S, String) {
+        (
+            self.service.into_inner().expect("service mutex poisoned"),
+            self.sheet_id,
+        )
     }
 }
