@@ -11,6 +11,8 @@ pub mod prices;
 pub use prices::PriceDatabase;
 pub mod query;
 pub use query::{ParseError as QueryParseError, Query};
+pub mod account;
+pub use account::Account;
 
 /// Errors that can occur when creating a [`Record`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,9 +53,9 @@ pub struct Record {
     /// Description or memo for the transaction.
     pub description: String,
     /// Account that is debited.
-    pub debit_account: String,
+    pub debit_account: Account,
     /// Account that is credited.
-    pub credit_account: String,
+    pub credit_account: Account,
     /// Monetary amount of the transaction.
     pub amount: f64,
     /// Currency code for the amount (e.g., USD).
@@ -71,8 +73,8 @@ impl Record {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         description: String,
-        debit_account: String,
-        credit_account: String,
+        debit_account: Account,
+        credit_account: Account,
         amount: f64,
         currency: String,
         reference_id: Option<Uuid>,
@@ -119,8 +121,8 @@ impl Record {
             self.id.to_string(),
             self.timestamp.to_rfc3339(),
             self.description.clone(),
-            self.debit_account.clone(),
-            self.credit_account.clone(),
+            self.debit_account.to_string(),
+            self.credit_account.to_string(),
             self.amount.to_string(),
             self.currency.clone(),
             self.reference_id
@@ -246,10 +248,36 @@ impl Ledger {
                     return acc;
                 }
             }
-            if r.debit_account == account {
+            if r.debit_account.to_string() == account {
                 acc += amount;
             }
-            if r.credit_account == account {
+            if r.credit_account.to_string() == account {
+                acc -= amount;
+            }
+            acc
+        })
+    }
+
+    /// Calculates the balance for an account and all of its subaccounts.
+    pub fn account_tree_balance(
+        &self,
+        account: &Account,
+        target: &str,
+        prices: &PriceDatabase,
+    ) -> f64 {
+        self.records.iter().fold(0.0, |mut acc, r| {
+            let mut amount = r.amount;
+            if r.currency != target {
+                if let Some(rate) = prices.get_rate(r.timestamp.date_naive(), &r.currency, target) {
+                    amount *= rate;
+                } else {
+                    return acc;
+                }
+            }
+            if r.debit_account.starts_with(account) {
+                acc += amount;
+            }
+            if r.credit_account.starts_with(account) {
                 acc -= amount;
             }
             acc
@@ -267,8 +295,8 @@ mod tests {
         ledger.commit(
             Record::new(
                 "first".into(),
-                "cash".into(),
-                "revenue".into(),
+                "cash".parse().unwrap(),
+                "revenue".parse().unwrap(),
                 1.0,
                 "USD".into(),
                 None,
@@ -280,8 +308,8 @@ mod tests {
         ledger.commit(
             Record::new(
                 "second".into(),
-                "cash".into(),
-                "revenue".into(),
+                "cash".parse().unwrap(),
+                "revenue".parse().unwrap(),
                 2.0,
                 "USD".into(),
                 None,

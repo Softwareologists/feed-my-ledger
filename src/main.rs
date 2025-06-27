@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
-use rusty_ledger::core::{Ledger, PriceDatabase, Query, Record};
+use rusty_ledger::core::{Account, Ledger, PriceDatabase, Query, Record};
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -202,8 +202,8 @@ fn record_from_row(row: &[String]) -> Option<Record> {
         id: Uuid::nil(),
         timestamp: Utc::now(),
         description: row[2].clone(),
-        debit_account: row[3].clone(),
-        credit_account: row[4].clone(),
+        debit_account: row[3].parse().ok()?,
+        credit_account: row[4].parse().ok()?,
         amount,
         currency: row[6].clone(),
         reference_id: if row[7].is_empty() {
@@ -292,8 +292,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } => {
             let record = Record::new(
                 description,
-                debit,
-                credit,
+                debit.parse()?,
+                credit.parse()?,
                 amount,
                 currency,
                 None,
@@ -342,8 +342,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let reference = uuid::Uuid::parse_str(&id)?;
             let mut record = Record::new(
                 description,
-                debit,
-                credit,
+                debit.parse()?,
+                credit.parse()?,
                 amount,
                 currency,
                 None,
@@ -400,12 +400,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None => Query::default(),
             };
             q.accounts.push(account.clone());
+            let account_parsed: Account = account.parse()?;
             let mut balance = 0.0;
             for rec in q.filter(&ledger) {
-                if rec.debit_account == account {
+                if rec.debit_account.starts_with(&account_parsed) {
                     balance += rec.amount;
                 }
-                if rec.credit_account == account {
+                if rec.credit_account.starts_with(&account_parsed) {
                     balance -= rec.amount;
                 }
             }

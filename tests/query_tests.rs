@@ -16,8 +16,8 @@ fn filter_by_tag_and_date() {
     let mut ledger = Ledger::default();
     let mut rec1 = Record::new(
         "coffee".into(),
-        "expenses".into(),
-        "cash".into(),
+        "expenses".parse().unwrap(),
+        "cash".parse().unwrap(),
         3.0,
         "USD".into(),
         None,
@@ -30,8 +30,8 @@ fn filter_by_tag_and_date() {
 
     let mut rec2 = Record::new(
         "rent".into(),
-        "expenses".into(),
-        "cash".into(),
+        "expenses".parse().unwrap(),
+        "cash".parse().unwrap(),
         100.0,
         "USD".into(),
         None,

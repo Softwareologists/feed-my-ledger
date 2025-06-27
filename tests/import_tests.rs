@@ -15,8 +15,8 @@ fn csv_parsing() {
     assert_eq!(records.len(), 1);
     let r = &records[0];
     assert_eq!(r.description, "Coffee");
-    assert_eq!(r.debit_account, "expenses:food");
-    assert_eq!(r.credit_account, "cash");
+    assert_eq!(r.debit_account.to_string(), "expenses:food");
+    assert_eq!(r.credit_account.to_string(), "cash");
     assert_eq!(r.amount, 3.50);
     let _ = std::fs::remove_file(path);
 }
@@ -71,8 +71,8 @@ fn csv_parsing_with_mapping() {
     assert_eq!(records.len(), 1);
     let r = &records[0];
     assert_eq!(r.description, "Coffee");
-    assert_eq!(r.debit_account, "expenses:food");
-    assert_eq!(r.credit_account, "cash");
+    assert_eq!(r.debit_account.to_string(), "expenses:food");
+    assert_eq!(r.credit_account.to_string(), "cash");
     assert_eq!(r.amount, 4.20);
     let _ = std::fs::remove_file(path);
 }

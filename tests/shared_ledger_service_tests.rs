@@ -76,8 +76,8 @@ fn commit_invokes_append_row() {
 
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -209,8 +209,8 @@ fn from_sheet_loads_existing_rows() {
     let sheet = adapter.create_sheet("ledger").unwrap();
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         2.0,
         "USD".into(),
         None,

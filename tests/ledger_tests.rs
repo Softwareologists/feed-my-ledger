@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, TimeZone, Utc};
-use rusty_ledger::core::{Ledger, LedgerError, PriceDatabase, Record, RecordError};
+use rusty_ledger::core::{Account, Ledger, LedgerError, PriceDatabase, Record, RecordError};
 use uuid::Uuid;
 
 #[test]
@@ -8,8 +8,8 @@ fn records_are_appended() {
     ledger.commit(
         Record::new(
             "data".into(),
-            "cash".into(),
-            "revenue".into(),
+            "cash".parse().unwrap(),
+            "revenue".parse().unwrap(),
             1.0,
             "USD".into(),
             None,
@@ -26,8 +26,8 @@ fn record_serialization_roundtrip() {
     let reference = Uuid::new_v4();
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         10.0,
         "USD".into(),
         Some(reference),
@@ -46,8 +46,8 @@ fn record_serialization_roundtrip() {
 fn record_creation_sets_fields() {
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         5.0,
         "USD".into(),
         None,
@@ -65,8 +65,8 @@ fn committed_record_can_be_retrieved() {
     let mut ledger = Ledger::default();
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         3.0,
         "USD".into(),
         None,
@@ -86,8 +86,8 @@ fn committed_records_are_immutable() {
     let mut ledger = Ledger::default();
     let record = Record::new(
         "desc".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         4.0,
         "USD".into(),
         None,
@@ -103,8 +103,8 @@ fn committed_records_are_immutable() {
             id,
             Record::new(
                 "new".into(),
-                "cash".into(),
-                "revenue".into(),
+                "cash".parse().unwrap(),
+                "revenue".parse().unwrap(),
                 5.0,
                 "USD".into(),
                 None,
@@ -126,8 +126,8 @@ fn adjustment_chaining() {
 
     let original = Record::new(
         "orig".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         10.0,
         "USD".into(),
         None,
@@ -140,8 +140,8 @@ fn adjustment_chaining() {
 
     let adj1 = Record::new(
         "adj1".into(),
-        "revenue".into(),
-        "cash".into(),
+        "revenue".parse().unwrap(),
+        "cash".parse().unwrap(),
         2.0,
         "USD".into(),
         None,
@@ -154,8 +154,8 @@ fn adjustment_chaining() {
 
     let adj2 = Record::new(
         "adj2".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -181,8 +181,8 @@ fn adjustment_requires_existing_record() {
     let mut ledger = Ledger::default();
     let adj = Record::new(
         "adj".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -200,8 +200,8 @@ fn adjustment_requires_existing_record() {
 fn record_creation_rejects_identical_accounts() {
     let err = Record::new(
         "desc".into(),
-        "cash".into(),
-        "cash".into(),
+        "cash".parse().unwrap(),
+        "cash".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -216,8 +216,8 @@ fn record_creation_rejects_identical_accounts() {
 fn record_creation_rejects_nonpositive_amounts() {
     let zero_err = Record::new(
         "zero".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         0.0,
         "USD".into(),
         None,
@@ -229,8 +229,8 @@ fn record_creation_rejects_nonpositive_amounts() {
 
     let negative_err = Record::new(
         "neg".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         -1.0,
         "USD".into(),
         None,
@@ -245,8 +245,8 @@ fn record_creation_rejects_nonpositive_amounts() {
 fn record_creation_validates_currency() {
     let valid = Record::new(
         "ok".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -257,8 +257,8 @@ fn record_creation_validates_currency() {
 
     let invalid = Record::new(
         "bad".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "ZZZ".into(),
         None,
@@ -275,8 +275,8 @@ fn account_balance_after_commits() {
     ledger.commit(
         Record::new(
             "first".into(),
-            "cash".into(),
-            "revenue".into(),
+            "cash".parse().unwrap(),
+            "revenue".parse().unwrap(),
             2.0,
             "USD".into(),
             None,
@@ -288,8 +288,8 @@ fn account_balance_after_commits() {
     ledger.commit(
         Record::new(
             "second".into(),
-            "cash".into(),
-            "revenue".into(),
+            "cash".parse().unwrap(),
+            "revenue".parse().unwrap(),
             3.0,
             "USD".into(),
             None,
@@ -310,8 +310,8 @@ fn account_balance_with_adjustments() {
 
     let original = Record::new(
         "orig".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         10.0,
         "USD".into(),
         None,
@@ -324,8 +324,8 @@ fn account_balance_with_adjustments() {
 
     let adj1 = Record::new(
         "adj1".into(),
-        "revenue".into(),
-        "cash".into(),
+        "revenue".parse().unwrap(),
+        "cash".parse().unwrap(),
         2.0,
         "USD".into(),
         None,
@@ -338,8 +338,8 @@ fn account_balance_with_adjustments() {
 
     let adj2 = Record::new(
         "adj2".into(),
-        "cash".into(),
-        "revenue".into(),
+        "cash".parse().unwrap(),
+        "revenue".parse().unwrap(),
         1.0,
         "USD".into(),
         None,
@@ -359,8 +359,8 @@ fn account_balance_converts_currencies() {
     let mut ledger = Ledger::default();
     let mut eur = Record::new(
         "eur".into(),
-        "cash".into(),
-        "rev".into(),
+        "cash".parse().unwrap(),
+        "rev".parse().unwrap(),
         10.0,
         "EUR".into(),
         None,
@@ -372,8 +372,8 @@ fn account_balance_converts_currencies() {
     ledger.commit(eur);
     let mut usd = Record::new(
         "usd".into(),
-        "cash".into(),
-        "rev".into(),
+        "cash".parse().unwrap(),
+        "rev".parse().unwrap(),
         10.0,
         "USD".into(),
         None,
@@ -391,4 +391,38 @@ fn account_balance_converts_currencies() {
 
     assert_eq!(ledger.account_balance("cash", "USD", &prices), 30.0);
     assert_eq!(ledger.account_balance("cash", "EUR", &prices), 15.0);
+}
+
+#[test]
+fn account_tree_balance_nested_accounts() {
+    let mut ledger = Ledger::default();
+    ledger.commit(
+        Record::new(
+            "check".into(),
+            "Assets:Bank:Checking".parse().unwrap(),
+            "income".parse().unwrap(),
+            5.0,
+            "USD".into(),
+            None,
+            None,
+            vec![],
+        )
+        .unwrap(),
+    );
+    ledger.commit(
+        Record::new(
+            "save".into(),
+            "Assets:Bank:Savings".parse().unwrap(),
+            "income".parse().unwrap(),
+            2.0,
+            "USD".into(),
+            None,
+            None,
+            vec![],
+        )
+        .unwrap(),
+    );
+    let prices = PriceDatabase::default();
+    let parent: Account = "Assets:Bank".parse().unwrap();
+    assert_eq!(ledger.account_tree_balance(&parent, "USD", &prices), 7.0);
 }

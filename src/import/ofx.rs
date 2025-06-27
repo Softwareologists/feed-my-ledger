@@ -36,8 +36,8 @@ impl OfxImporter {
                 };
                 let rec = Record::new(
                     name.trim().to_string(),
-                    debit,
-                    credit,
+                    debit.parse().unwrap(),
+                    credit.parse().unwrap(),
                     amount.abs(),
                     "USD".into(),
                     None,
