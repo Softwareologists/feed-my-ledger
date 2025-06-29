@@ -345,6 +345,46 @@ async fn adapter_from_config(
     Ok(adapter)
 }
 
+fn import_with_progress<S: CloudSpreadsheetService>(
+    adapter: &mut S,
+    sheet_id: &str,
+    file: &Path,
+    format: Option<String>,
+    mapping: CsvMapArgs,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let fmt = format
+        .or_else(|| {
+            file.extension()
+                .and_then(|s| s.to_str())
+                .map(|s| s.to_string())
+        })
+        .ok_or_else(|| "could not determine file format".to_string())?;
+
+    let records = match fmt.to_lowercase().as_str() {
+        "csv" => {
+            if let Some(map) = mapping.into_mapping() {
+                import::csv::parse_with_mapping(file, &map)
+            } else {
+                import::csv::parse(file)
+            }
+        }
+        "qif" => import::qif::parse(file),
+        "ofx" => import::ofx::parse(file),
+        "ledger" => import::ledger::parse(file),
+        "json" => import::json::parse(file),
+        other => return Err(format!("unsupported format: {other}").into()),
+    }?;
+
+    let pb = indicatif::ProgressBar::new(records.len() as u64);
+    for rec in records {
+        adapter.append_row(sheet_id, rec.to_row())?;
+        pb.inc(1);
+    }
+    pb.finish_with_message("done");
+
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = tokio::runtime::Runtime::new()?;
     let cli = Cli::parse();
@@ -540,30 +580,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             format,
             mapping,
         } => {
-            let fmt = format
-                .or_else(|| {
-                    file.extension()
-                        .and_then(|s| s.to_str())
-                        .map(|s| s.to_string())
-                })
-                .ok_or_else(|| "could not determine file format".to_string())?;
-            let records = match fmt.to_lowercase().as_str() {
-                "csv" => {
-                    if let Some(map) = mapping.into_mapping() {
-                        import::csv::parse_with_mapping(&file, &map)
-                    } else {
-                        import::csv::parse(&file)
-                    }
-                }
-                "qif" => import::qif::parse(&file),
-                "ofx" => import::ofx::parse(&file),
-                "ledger" => import::ledger::parse(&file),
-                "json" => import::json::parse(&file),
-                other => return Err(format!("unsupported format: {other}").into()),
-            }?;
-            for rec in records {
-                adapter.append_row(&sheet_id, rec.to_row())?;
-            }
+            import_with_progress(&mut adapter, &sheet_id, &file, format, mapping)?;
         }
         #[cfg(feature = "bank-api")]
         Commands::Download { url } => {
