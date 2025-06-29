@@ -25,7 +25,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 Add the following to your Cargo.toml:
 ```toml
 [dependencies]
-rusty-ledger = "1.0.0"
+rusty-ledger = "2.0.0"
 ```
 
 ## Usage
