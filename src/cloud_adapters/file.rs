@@ -18,7 +18,11 @@ impl FileAdapter {
     }
 
     fn sheet_path(&self, id: &str) -> PathBuf {
-        self.base_dir.join(format!("{id}.csv"))
+        let sanitized: String = id
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+            .collect();
+        self.base_dir.join(format!("{sanitized}.csv"))
     }
 }
 

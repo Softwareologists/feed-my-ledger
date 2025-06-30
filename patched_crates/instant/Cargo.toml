@@ -1,0 +1,10 @@
+[package]
+name = "instant"
+version = "0.1.14"
+edition = "2021"
+
+[dependencies]
+web-time = "1.1.0"
+
+[lib]
+path = "lib.rs"
