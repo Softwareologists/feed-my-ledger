@@ -82,6 +82,17 @@ $ cargo run --bin ledger -- add \
 $ cargo run --bin ledger -- list
 ```
 
+Split transactions use the same command with an additional `--splits` argument
+containing a JSON array of extra postings:
+
+```bash
+$ cargo run --bin ledger -- add \
+    --description "Shopping" \
+    --debit expenses:grocery --credit cash \
+    --amount 30 --currency USD \
+    --splits '[{"debit":"expenses:supplies","credit":"cash","amount":20}]'
+```
+
 Before issuing API commands for the first time, authorize the application:
 
 ```bash

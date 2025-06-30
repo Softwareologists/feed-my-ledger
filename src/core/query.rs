@@ -80,7 +80,9 @@ impl Query {
         }
         if !self.accounts.is_empty()
             && !self.accounts.iter().any(|a| {
-                a == &rec.debit_account.to_string() || a == &rec.credit_account.to_string()
+                rec.postings().any(|p| {
+                    a == &p.debit_account.to_string() || a == &p.credit_account.to_string()
+                })
             })
         {
             return false;

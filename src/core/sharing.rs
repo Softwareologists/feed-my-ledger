@@ -140,6 +140,12 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         } else {
             row[9].split(',').map(|s| s.to_string()).collect()
         };
+        let splits = if row.len() >= 11 && !row[10].is_empty() {
+            serde_json::from_str(&row[10])
+                .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?
+        } else {
+            Vec::new()
+        };
 
         Ok(Record {
             id,
@@ -157,6 +163,7 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             external_reference,
             tags,
             cleared: false,
+            splits,
         })
     }
 

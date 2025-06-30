@@ -91,19 +91,21 @@ fn account_sum(
         if date < start || date > end {
             return acc;
         }
-        let mut amount = r.amount;
-        if r.currency != target {
-            if let Some(rate) = prices.get_rate(date, &r.currency, target) {
-                amount *= rate;
-            } else {
-                return acc;
+        for p in r.postings() {
+            let mut amount = p.amount;
+            if r.currency != target {
+                if let Some(rate) = prices.get_rate(date, &r.currency, target) {
+                    amount *= rate;
+                } else {
+                    continue;
+                }
             }
-        }
-        if r.debit_account.starts_with(account) {
-            acc += amount;
-        }
-        if r.credit_account.starts_with(account) {
-            acc -= amount;
+            if p.debit_account.starts_with(account) {
+                acc += amount;
+            }
+            if p.credit_account.starts_with(account) {
+                acc -= amount;
+            }
         }
         acc
     })

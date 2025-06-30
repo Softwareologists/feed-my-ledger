@@ -18,6 +18,17 @@ pub mod scheduler;
 pub use budget::{Budget, BudgetBook, Period};
 pub use scheduler::{RecordTemplate, ScheduleEntry, Scheduler};
 
+/// Represents a single debit/credit posting within a transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Posting {
+    /// Account that is debited.
+    pub debit_account: Account,
+    /// Account that is credited.
+    pub credit_account: Account,
+    /// Monetary amount of the posting.
+    pub amount: f64,
+}
+
 /// Errors that can occur when creating a [`Record`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordError {
@@ -64,6 +75,9 @@ pub struct Record {
     pub amount: f64,
     /// Currency code for the amount (e.g., USD).
     pub currency: String,
+    /// Additional postings that make up a split transaction.
+    #[serde(default)]
+    pub splits: Vec<Posting>,
     /// Optional reference to another record when creating adjustments.
     pub reference_id: Option<Uuid>,
     /// Optional external reference such as invoice or receipt number.
@@ -88,28 +102,59 @@ impl Record {
         external_reference: Option<String>,
         tags: Vec<String>,
     ) -> Result<Self, RecordError> {
-        if debit_account == credit_account {
-            return Err(RecordError::SameAccount);
-        }
-        if amount <= 0.0 {
+        Self::new_split(
+            description,
+            vec![Posting {
+                debit_account,
+                credit_account,
+                amount,
+            }],
+            currency,
+            reference_id,
+            external_reference,
+            tags,
+        )
+    }
+
+    /// Creates a record with multiple debit/credit postings.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_split(
+        description: String,
+        postings: Vec<Posting>,
+        currency: String,
+        reference_id: Option<Uuid>,
+        external_reference: Option<String>,
+        tags: Vec<String>,
+    ) -> Result<Self, RecordError> {
+        if postings.is_empty() {
             return Err(RecordError::NonPositiveAmount);
         }
         if Currency::from_code(&currency).is_none() {
             return Err(RecordError::UnsupportedCurrency(currency));
         }
-
+        for p in &postings {
+            if p.debit_account == p.credit_account {
+                return Err(RecordError::SameAccount);
+            }
+            if p.amount <= 0.0 {
+                return Err(RecordError::NonPositiveAmount);
+            }
+        }
+        let mut iter = postings.into_iter();
+        let first = iter.next().expect("postings.is_empty() checked above");
         Ok(Self {
             id: Uuid::new_v4(),
             timestamp: Utc::now(),
             description,
-            debit_account,
-            credit_account,
-            amount,
+            debit_account: first.debit_account,
+            credit_account: first.credit_account,
+            amount: first.amount,
             currency,
             reference_id,
             external_reference,
             tags,
             cleared: false,
+            splits: iter.collect(),
         })
     }
 
@@ -123,8 +168,23 @@ impl Record {
         serde_json::from_str(input)
     }
 
+    /// Returns an iterator over all postings, including splits.
+    pub fn postings(&self) -> impl Iterator<Item = Posting> + '_ {
+        let first = Posting {
+            debit_account: self.debit_account.clone(),
+            credit_account: self.credit_account.clone(),
+            amount: self.amount,
+        };
+        std::iter::once(first).chain(self.splits.clone())
+    }
+
     /// Converts the record into a row for spreadsheet storage.
     pub fn to_row(&self) -> Vec<String> {
+        let splits = if self.splits.is_empty() {
+            String::new()
+        } else {
+            serde_json::to_string(&self.splits).unwrap_or_default()
+        };
         vec![
             self.id.to_string(),
             self.timestamp.to_rfc3339(),
@@ -138,6 +198,7 @@ impl Record {
                 .unwrap_or_default(),
             self.external_reference.clone().unwrap_or_default(),
             self.tags.join(","),
+            splits,
         ]
     }
 
@@ -257,19 +318,23 @@ impl Ledger {
     /// credits. Debits increase the balance while credits decrease it.
     pub fn account_balance(&self, account: &str, target: &str, prices: &PriceDatabase) -> f64 {
         self.records.iter().fold(0.0, |mut acc, r| {
-            let mut amount = r.amount;
-            if r.currency != target {
-                if let Some(rate) = prices.get_rate(r.timestamp.date_naive(), &r.currency, target) {
-                    amount *= rate;
-                } else {
-                    return acc;
+            for p in r.postings() {
+                let mut amount = p.amount;
+                if r.currency != target {
+                    if let Some(rate) =
+                        prices.get_rate(r.timestamp.date_naive(), &r.currency, target)
+                    {
+                        amount *= rate;
+                    } else {
+                        continue;
+                    }
                 }
-            }
-            if r.debit_account.to_string() == account {
-                acc += amount;
-            }
-            if r.credit_account.to_string() == account {
-                acc -= amount;
+                if p.debit_account.to_string() == account {
+                    acc += amount;
+                }
+                if p.credit_account.to_string() == account {
+                    acc -= amount;
+                }
             }
             acc
         })
@@ -283,19 +348,23 @@ impl Ledger {
         prices: &PriceDatabase,
     ) -> f64 {
         self.records.iter().fold(0.0, |mut acc, r| {
-            let mut amount = r.amount;
-            if r.currency != target {
-                if let Some(rate) = prices.get_rate(r.timestamp.date_naive(), &r.currency, target) {
-                    amount *= rate;
-                } else {
-                    return acc;
+            for p in r.postings() {
+                let mut amount = p.amount;
+                if r.currency != target {
+                    if let Some(rate) =
+                        prices.get_rate(r.timestamp.date_naive(), &r.currency, target)
+                    {
+                        amount *= rate;
+                    } else {
+                        continue;
+                    }
                 }
-            }
-            if r.debit_account.starts_with(account) {
-                acc += amount;
-            }
-            if r.credit_account.starts_with(account) {
-                acc -= amount;
+                if p.debit_account.starts_with(account) {
+                    acc += amount;
+                }
+                if p.credit_account.starts_with(account) {
+                    acc -= amount;
+                }
             }
             acc
         })
