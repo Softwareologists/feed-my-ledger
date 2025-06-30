@@ -194,6 +194,33 @@ the CLI.
 6. Save the file. The CLI reads this configuration on startup and will use the
    specified `sheet_name` for all ledger operations.
 
+### Excel 365 Setup
+
+To connect Rusty Ledger to Microsoft Excel 365 you must register an application
+in Azure and provide workbook credentials.
+
+1. Open the [Azure Portal](https://portal.azure.com/) and create a new
+   application under **Azure Active Directory > App registrations**.
+2. Add the **Files.ReadWrite** delegated permission for Microsoft Graph and
+   grant consent.
+3. Generate a client secret under **Certificates & secrets** and note the
+   secret value as well as the **Application (client) ID** and **Directory
+   (tenant) ID**.
+4. Create or select the workbook you want to use and copy its ID from the share
+   link or via the Graph Explorer.
+5. Store these details in your `config.toml`:
+   ```toml
+   [excel_365]
+   tenant_id = "<TENANT_ID>"
+   client_id = "<CLIENT_ID>"
+   client_secret = "<CLIENT_SECRET>"
+   workbook_id = "<WORKBOOK_ID>"
+   # optional: defaults to "Ledger"
+   sheet_name = "Ledger"
+   ```
+6. Load this configuration when creating an `Excel365Adapter` in your code. The
+   included CLI does not yet read these fields automatically.
+
 # 🧪 Running Tests
 ```bash
 cargo test
