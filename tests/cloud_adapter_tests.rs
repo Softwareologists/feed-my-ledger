@@ -1,8 +1,10 @@
+use rusty_ledger::cloud_adapters::FileAdapter;
 use rusty_ledger::cloud_adapters::google_sheets4::TokenProvider;
 use rusty_ledger::cloud_adapters::{
     CloudSpreadsheetService, Excel365Adapter, GoogleSheets4Adapter, GoogleSheetsAdapter,
     SpreadsheetError,
 };
+use uuid::Uuid;
 
 #[test]
 fn create_append_and_list_rows() {
@@ -158,4 +160,25 @@ async fn excel_share_sheet_propagates_failure() {
     .unwrap();
     assert_eq!(err, SpreadsheetError::ShareFailed);
     server.verify().await;
+}
+
+#[test]
+fn file_adapter_round_trip() {
+    let dir = std::env::temp_dir().join(format!("ledger_{}", Uuid::new_v4()));
+    std::fs::create_dir(&dir).unwrap();
+    let mut adapter = FileAdapter::new(&dir);
+    let id = adapter.create_sheet("test").unwrap();
+    adapter
+        .append_row(&id, vec!["a".into(), "b".into()])
+        .unwrap();
+    let rows = adapter.list_rows(&id).unwrap();
+    assert_eq!(rows, vec![vec!["a", "b"]]);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn file_adapter_missing_sheet() {
+    let adapter = FileAdapter::new(std::env::temp_dir());
+    let err = adapter.read_row("missing", 0).unwrap_err();
+    assert_eq!(err, SpreadsheetError::SheetNotFound);
 }

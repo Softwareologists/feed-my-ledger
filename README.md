@@ -11,6 +11,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 - Immutable Data Entries: Once data is committed, it becomes read-only.
 - Append-Only Adjustments: Modifications are handled by appending new records that reference the original entries.
 - Cloud Service Integration: Supports integration with services like Google Sheets and Microsoft Excel 365.
+- Local File Storage: Save ledger data to CSV files using the `FileAdapter`.
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
 - Resilient API Calls: Automatically retries transient errors with exponential backoff.
@@ -89,6 +90,17 @@ $ cargo run --bin ledger -- add \
 $ cargo run --bin ledger -- list
 ```
 
+Pass `--local-dir <DIR>` to store rows in local CSV files instead of a cloud
+service:
+
+```bash
+$ cargo run --bin ledger -- --local-dir ledger_data add \
+    --description "Coffee" \
+    --debit cash --credit expenses \
+    --amount 3.5 --currency USD
+$ cargo run --bin ledger -- --local-dir ledger_data list
+```
+
 Before issuing API commands for the first time, authorize the application:
 
 ```bash
@@ -141,7 +153,8 @@ $ cargo run --bin ledger -- download --url "https://bank.example.com/statement.o
 # 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the
 binary. This file stores your OAuth credentials and the spreadsheet ID used by
-the CLI.
+the CLI. When using `--local-dir`, only the sheet ID is persisted and no OAuth
+credentials are required.
 
 1. Create the file in your project root:
    ```bash

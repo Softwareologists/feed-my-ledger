@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
-use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
+use rusty_ledger::cloud_adapters::{
+    CloudSpreadsheetService, FileAdapter, google_sheets4::GoogleSheets4Adapter,
+};
 use rusty_ledger::core::{
     Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
 };
@@ -98,6 +100,10 @@ impl CsvMapArgs {
 #[derive(Parser)]
 #[command(name = "ledger", about = "Interact with a cloud ledger")]
 struct Cli {
+    /// Directory for local CSV storage. When set, the CLI uses FileAdapter
+    /// instead of a cloud service.
+    #[arg(long)]
+    local_dir: Option<PathBuf>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -366,8 +372,8 @@ async fn adapter_from_config(
     Ok(adapter)
 }
 
-fn import_with_progress<S: CloudSpreadsheetService>(
-    adapter: &mut S,
+fn import_with_progress(
+    adapter: &mut dyn CloudSpreadsheetService,
     sheet_id: &str,
     file: &Path,
     format: Option<String>,
@@ -430,7 +436,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let mut adapter = rt.block_on(adapter_from_config(&cfg.google_sheets))?;
+    let mut adapter: Box<dyn CloudSpreadsheetService> = if let Some(dir) = &cli.local_dir {
+        std::fs::create_dir_all(dir)?;
+        Box::new(FileAdapter::new(dir))
+    } else {
+        Box::new(rt.block_on(adapter_from_config(&cfg.google_sheets))?)
+    };
     let sheet_id = match &cfg.google_sheets.spreadsheet_id {
         Some(id) => id.clone(),
         None => {
@@ -608,7 +619,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             format,
             mapping,
         } => {
-            import_with_progress(&mut adapter, &sheet_id, &file, format, mapping)?;
+            import_with_progress(&mut *adapter, &sheet_id, &file, format, mapping)?;
         }
         Commands::Export { file, format } => {
             let rows = adapter.list_rows(&sheet_id)?;

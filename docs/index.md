@@ -5,6 +5,7 @@ title: Overview
 - Immutable Data Entries: Once data is committed, it becomes read-only.
 - Append-Only Adjustments: Modifications are handled by appending new records that reference the original entries.
 - Cloud Service Integration: Supports integration with services like Google Sheets and Microsoft Excel 365.
+- Local File Storage: Save ledger data to CSV files using the `FileAdapter`.
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
 - Resilient API Calls: Automatically retries transient errors with exponential backoff.
@@ -85,6 +86,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+If you prefer to avoid cloud services entirely, `FileAdapter` stores rows in local CSV files:
+
+```rust,no_run
+use rusty_ledger::cloud_adapters::FileAdapter;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut service = FileAdapter::new("./ledger_data");
+    let sheet_id = service.create_sheet("ledger")?;
+    service.append_row(&sheet_id, vec!["hello".into()])?;
+    Ok(())
+}
+```
+
 #### Command Line Interface
 
 The crate ships with a small CLI for local experimentation. To add a record and
@@ -96,6 +110,16 @@ $ cargo run --bin ledger -- add \
     --debit cash --credit expenses \
     --amount 3.5 --currency USD
 $ cargo run --bin ledger -- list
+```
+
+Add `--local-dir <DIR>` to store data in local CSV files:
+
+```bash
+$ cargo run --bin ledger -- --local-dir ledger_data add \
+    --description "Coffee" \
+    --debit cash --credit expenses \
+    --amount 3.5 --currency USD
+$ cargo run --bin ledger -- --local-dir ledger_data list
 ```
 
 Split transactions use the same command with an additional `--splits` argument
@@ -161,7 +185,8 @@ $ cargo run --bin ledger -- download --url "https://bank.example.com/statement.o
 ## 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the
 binary. This file stores your OAuth credentials and the spreadsheet ID used by
-the CLI.
+the CLI. When running with `--local-dir`, only the sheet ID is saved and no
+OAuth configuration is needed.
 
 1. Create the file in your project root:
    ```bash
