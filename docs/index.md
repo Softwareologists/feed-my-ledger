@@ -5,6 +5,7 @@ title: Overview
 - Immutable Data Entries: Once data is committed, it becomes read-only.
 - Append-Only Adjustments: Modifications are handled by appending new records that reference the original entries.
 - Cloud Service Integration: Supports integration with services like Google Sheets and Microsoft Excel 365.
+- Local File Storage: Save ledger data to CSV files using the `FileAdapter`.
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
 - Resilient API Calls: Automatically retries transient errors with exponential backoff.
@@ -79,6 +80,19 @@ use rusty_ledger::cloud_adapters::Excel365Adapter;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `auth` must provide OAuth tokens scoped for Microsoft Graph
     let mut service = Excel365Adapter::new(auth);
+    let sheet_id = service.create_sheet("ledger")?;
+    service.append_row(&sheet_id, vec!["hello".into()])?;
+    Ok(())
+}
+```
+
+If you prefer to avoid cloud services entirely, `FileAdapter` stores rows in local CSV files:
+
+```rust,no_run
+use rusty_ledger::cloud_adapters::FileAdapter;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut service = FileAdapter::new("./ledger_data");
     let sheet_id = service.create_sheet("ledger")?;
     service.append_row(&sheet_id, vec!["hello".into()])?;
     Ok(())
