@@ -1,3 +1,4 @@
+use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -87,23 +88,48 @@ impl TokenStore for MemoryTokenStore {
 /// File-based token storage using JSON serialization.
 pub struct FileTokenStore {
     path: PathBuf,
+    key: [u8; 32],
     tokens: HashMap<String, OAuth2Token>,
 }
 
 impl FileTokenStore {
     /// Create a store backed by the given file path. Existing data is loaded if available.
-    pub fn new(path: impl Into<PathBuf>) -> Self {
+    pub fn new(path: impl Into<PathBuf>, key: [u8; 32]) -> Self {
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
         let path = path.into();
         let tokens = std::fs::read_to_string(&path)
             .ok()
-            .and_then(|data| serde_json::from_str(&data).ok())
+            .and_then(|data| {
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(data)
+                    .ok()?;
+                if bytes.len() < 12 {
+                    return None;
+                }
+                let (nonce_bytes, cipher_text) = bytes.split_at(12);
+                let cipher = Aes256Gcm::new_from_slice(&key).ok()?;
+                cipher
+                    .decrypt(Nonce::from_slice(nonce_bytes), cipher_text)
+                    .ok()
+            })
+            .and_then(|plain| serde_json::from_slice(&plain).ok())
             .unwrap_or_default();
-        Self { path, tokens }
+        Self { path, key, tokens }
     }
 
     fn persist(&self) {
-        if let Ok(data) = serde_json::to_string(&self.tokens) {
-            let _ = std::fs::write(&self.path, data);
+        use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
+        use rand::RngCore;
+        if let Ok(data) = serde_json::to_vec(&self.tokens) {
+            let cipher = Aes256Gcm::new_from_slice(&self.key).expect("key");
+            let mut nonce = [0u8; 12];
+            rand::thread_rng().fill_bytes(&mut nonce);
+            if let Ok(mut encrypted) = cipher.encrypt(Nonce::from_slice(&nonce), data.as_ref()) {
+                let mut out = nonce.to_vec();
+                out.append(&mut encrypted);
+                let encoded = base64::engine::general_purpose::STANDARD.encode(out);
+                let _ = std::fs::write(&self.path, encoded);
+            }
         }
     }
 }

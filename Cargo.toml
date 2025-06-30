@@ -19,9 +19,15 @@ iso_currency = "0.5"
 cron = "0.12"
 rhai = "1"
 indicatif = "0.17"
+aes-gcm = "0.10"
+rand = "0.8"
+base64 = "0.21"
 
 [features]
 bank-api = []
 
 [dev-dependencies]
 wiremock = "0.6"
+
+[patch.crates-io]
+instant = { path = "patched_crates/instant" }
