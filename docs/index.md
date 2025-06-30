@@ -112,6 +112,16 @@ $ cargo run --bin ledger -- add \
 $ cargo run --bin ledger -- list
 ```
 
+Add `--local-dir <DIR>` to store data in local CSV files:
+
+```bash
+$ cargo run --bin ledger -- --local-dir ledger_data add \
+    --description "Coffee" \
+    --debit cash --credit expenses \
+    --amount 3.5 --currency USD
+$ cargo run --bin ledger -- --local-dir ledger_data list
+```
+
 Split transactions use the same command with an additional `--splits` argument
 containing a JSON array of extra postings:
 
@@ -175,7 +185,8 @@ $ cargo run --bin ledger -- download --url "https://bank.example.com/statement.o
 ## 🛠️ Configuration
 Rusty Ledger looks for a `config.toml` file in the same directory as the
 binary. This file stores your OAuth credentials and the spreadsheet ID used by
-the CLI.
+the CLI. When running with `--local-dir`, only the sheet ID is saved and no
+OAuth configuration is needed.
 
 1. Create the file in your project root:
    ```bash
