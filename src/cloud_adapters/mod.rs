@@ -9,6 +9,8 @@ pub mod google_sheets4;
 pub use google_sheets4::GoogleSheets4Adapter;
 pub mod excel_365;
 pub use excel_365::Excel365Adapter;
+pub mod file;
+pub use file::FileAdapter;
 
 use std::collections::HashMap;
 
