@@ -2,7 +2,8 @@
 title: Overview
 ---
 # Rusty Ledger
-<p style="font-weight:500;">Immutable ledgers, evolved.</p>
+
+Rust-fast, cloud-backed ledger.
 
 ## Features
 
