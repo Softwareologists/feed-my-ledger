@@ -7,6 +7,8 @@ pub mod buffered;
 pub use buffered::{BatchingCacheService, EvictionPolicy};
 pub mod google_sheets4;
 pub use google_sheets4::GoogleSheets4Adapter;
+pub mod excel_365;
+pub use excel_365::Excel365Adapter;
 
 use std::collections::HashMap;
 

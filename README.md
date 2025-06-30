@@ -10,7 +10,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 # 📦 Features
 - Immutable Data Entries: Once data is committed, it becomes read-only.
 - Append-Only Adjustments: Modifications are handled by appending new records that reference the original entries.
-- Cloud Service Integration: Supports integration with services like Google Sheets.
+- Cloud Service Integration: Supports integration with services like Google Sheets and Microsoft Excel 365.
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
 - Resilient API Calls: Automatically retries transient errors with exponential backoff.
@@ -20,6 +20,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 - Rust (version 1.74 or higher)
 - Google Cloud account with Sheets API enabled
 - OAuth2 credentials for Google Sheets API
+- Microsoft account with Excel 365 access
 
 ## Installation
 Add the following to your Cargo.toml:
