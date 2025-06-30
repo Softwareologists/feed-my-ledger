@@ -1,5 +1,5 @@
 ---
-title: Rusty Ledger
+title: Overview
 ---
 # Rusty Ledger
 <p style="font-weight:500;">Immutable ledgers, evolved.</p>
