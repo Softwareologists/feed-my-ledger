@@ -5,7 +5,7 @@ use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, google_sheets4::GoogleSheets4Adapter};
 use rusty_ledger::core::{
-    Account, Budget, BudgetBook, Ledger, Period, PriceDatabase, Query, Record,
+    Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
 };
 use rusty_ledger::import;
 use serde::{Deserialize, Serialize};
@@ -60,6 +60,13 @@ struct CsvMapArgs {
     map_amount: Option<String>,
     #[arg(long, help = "Column name for the currency field")]
     map_currency: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CliPosting {
+    debit: String,
+    credit: String,
+    amount: f64,
 }
 
 impl CsvMapArgs {
@@ -155,6 +162,8 @@ enum Commands {
         amount: f64,
         #[arg(long)]
         currency: String,
+        #[arg(long, help = "JSON array of additional postings")]
+        splits: Option<String>,
     },
     /// List all rows in the active sheet
     List,
@@ -510,17 +519,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             credit,
             amount,
             currency,
+            splits,
         } => {
-            let record = Record::new(
-                description,
-                debit.parse()?,
-                credit.parse()?,
+            let mut postings = vec![Posting {
+                debit_account: debit.parse()?,
+                credit_account: credit.parse()?,
                 amount,
-                currency,
-                None,
-                None,
-                vec![],
-            )?;
+            }];
+            if let Some(data) = splits {
+                let extra: Vec<CliPosting> = serde_json::from_str(&data)?;
+                for p in extra {
+                    postings.push(Posting {
+                        debit_account: p.debit.parse()?,
+                        credit_account: p.credit.parse()?,
+                        amount: p.amount,
+                    });
+                }
+            }
+            let record = Record::new_split(description, postings, currency, None, None, vec![])?;
             adapter.append_row(&sheet_id, record.to_row())?;
         }
         Commands::List => {
