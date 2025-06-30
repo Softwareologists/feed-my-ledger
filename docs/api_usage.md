@@ -110,6 +110,7 @@ let custom = csv::parse_with_mapping(Path::new("other.csv"), &mapping)?;
 - `SpreadsheetError` – common error type returned by services.
 - `GoogleSheetsAdapter` – in-memory adapter useful for tests.
 - `GoogleSheets4Adapter` – adapter using the real Google Sheets API.
+- `Excel365Adapter` – adapter using the Microsoft Graph API.
 - `BatchingCacheService` – wrapper that batches writes and caches reads.
 - `EvictionPolicy` – strategy used by `BatchingCacheService` when caching.
 - `RetryingService` – wrapper adding retry logic with exponential backoff.

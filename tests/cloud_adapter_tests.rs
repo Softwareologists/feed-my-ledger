@@ -1,6 +1,7 @@
 use rusty_ledger::cloud_adapters::google_sheets4::TokenProvider;
 use rusty_ledger::cloud_adapters::{
-    CloudSpreadsheetService, GoogleSheets4Adapter, GoogleSheetsAdapter, SpreadsheetError,
+    CloudSpreadsheetService, Excel365Adapter, GoogleSheets4Adapter, GoogleSheetsAdapter,
+    SpreadsheetError,
 };
 
 #[test]
@@ -101,6 +102,55 @@ async fn share_sheet_propagates_failure() {
 
     let adapter =
         GoogleSheets4Adapter::with_drive_base_url(StaticToken, format!("{}/", server.uri()));
+    let err = tokio::task::spawn_blocking(move || {
+        adapter.share_sheet("bad", "user@example.com").unwrap_err()
+    })
+    .await
+    .unwrap();
+    assert_eq!(err, SpreadsheetError::ShareFailed);
+    server.verify().await;
+}
+
+#[test]
+fn excel365_adapter_is_service() {
+    fn assert_impl<T: CloudSpreadsheetService>() {}
+    assert_impl::<Excel365Adapter>();
+}
+
+#[tokio::test]
+async fn excel_share_sheet_sends_request() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/me/drive/items/sheet123/invite"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&server)
+        .await;
+
+    let adapter = Excel365Adapter::with_base_url(StaticToken, format!("{}/", server.uri()));
+    tokio::task::spawn_blocking(move || {
+        adapter.share_sheet("sheet123", "user@example.com").unwrap();
+    })
+    .await
+    .unwrap();
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn excel_share_sheet_propagates_failure() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/me/drive/items/bad/invite"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+
+    let adapter = Excel365Adapter::with_base_url(StaticToken, format!("{}/", server.uri()));
     let err = tokio::task::spawn_blocking(move || {
         adapter.share_sheet("bad", "user@example.com").unwrap_err()
     })

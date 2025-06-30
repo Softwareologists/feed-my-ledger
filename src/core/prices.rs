@@ -46,7 +46,7 @@ impl PriceDatabase {
     pub fn to_csv(&self, path: &Path) -> Result<(), std::io::Error> {
         let mut lines = vec!["date,from,to,rate".to_string()];
         for (date, from, to, rate) in self.all_rates() {
-            lines.push(format!("{},{},{},{}", date, from, to, rate));
+            lines.push(format!("{date},{from},{to},{rate}"));
         }
         std::fs::write(path, lines.join("\n"))
     }

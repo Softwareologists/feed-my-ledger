@@ -4,7 +4,7 @@ title: Overview
 ## 📦 Features
 - Immutable Data Entries: Once data is committed, it becomes read-only.
 - Append-Only Adjustments: Modifications are handled by appending new records that reference the original entries.
-- Cloud Service Integration: Supports integration with services like Google Sheets.
+- Cloud Service Integration: Supports integration with services like Google Sheets and Microsoft Excel 365.
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
 - Resilient API Calls: Automatically retries transient errors with exponential backoff.
@@ -14,6 +14,7 @@ title: Overview
 - Rust (version 1.74 or higher)
 - Google Cloud account with Sheets API enabled
 - OAuth2 credentials for Google Sheets API
+- Microsoft account with Excel 365 access
 
 ### Installation
 Add the following to your Cargo.toml:
@@ -63,6 +64,21 @@ async fn example() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     let mut service = GoogleSheets4Adapter::with_sheet_name(auth, "Custom");
+    let sheet_id = service.create_sheet("ledger")?;
+    service.append_row(&sheet_id, vec!["hello".into()])?;
+    Ok(())
+}
+```
+
+To integrate with Microsoft Excel 365 instead, use the `Excel365Adapter` which
+talks to the Microsoft Graph API:
+
+```rust,no_run
+use rusty_ledger::cloud_adapters::Excel365Adapter;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // `auth` must provide OAuth tokens scoped for Microsoft Graph
+    let mut service = Excel365Adapter::new(auth);
     let sheet_id = service.create_sheet("ledger")?;
     service.append_row(&sheet_id, vec!["hello".into()])?;
     Ok(())
