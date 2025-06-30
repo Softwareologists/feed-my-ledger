@@ -309,6 +309,11 @@ fn record_from_row(row: &[String]) -> Option<Record> {
             row[9].split(',').map(|s| s.to_string()).collect()
         },
         cleared: false,
+        splits: if row.len() >= 11 && !row[10].is_empty() {
+            serde_json::from_str(&row[10]).ok()?
+        } else {
+            Vec::new()
+        },
     })
 }
 

@@ -1,5 +1,7 @@
 use chrono::{NaiveDate, TimeZone, Utc};
-use rusty_ledger::core::{Account, Ledger, LedgerError, PriceDatabase, Record, RecordError};
+use rusty_ledger::core::{
+    Account, Ledger, LedgerError, Posting, PriceDatabase, Record, RecordError,
+};
 use uuid::Uuid;
 
 #[test]
@@ -425,4 +427,40 @@ fn account_tree_balance_nested_accounts() {
     let prices = PriceDatabase::default();
     let parent: Account = "Assets:Bank".parse().unwrap();
     assert_eq!(ledger.account_tree_balance(&parent, "USD", &prices), 7.0);
+}
+
+#[test]
+fn split_transaction_balance() {
+    let mut ledger = Ledger::default();
+    let rec = Record::new_split(
+        "shopping".into(),
+        vec![
+            Posting {
+                debit_account: "expenses:grocery".parse().unwrap(),
+                credit_account: "cash".parse().unwrap(),
+                amount: 30.0,
+            },
+            Posting {
+                debit_account: "expenses:supplies".parse().unwrap(),
+                credit_account: "cash".parse().unwrap(),
+                amount: 20.0,
+            },
+        ],
+        "USD".into(),
+        None,
+        None,
+        vec![],
+    )
+    .unwrap();
+    ledger.commit(rec);
+    let prices = PriceDatabase::default();
+    assert_eq!(ledger.account_balance("cash", "USD", &prices), -50.0);
+    assert_eq!(
+        ledger.account_balance("expenses:grocery", "USD", &prices),
+        30.0
+    );
+    assert_eq!(
+        ledger.account_balance("expenses:supplies", "USD", &prices),
+        20.0
+    );
 }
