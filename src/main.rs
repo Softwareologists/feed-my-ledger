@@ -203,6 +203,13 @@ enum Commands {
         #[command(flatten)]
         mapping: CsvMapArgs,
     },
+    /// Export ledger data to a file
+    Export {
+        #[arg(long)]
+        file: PathBuf,
+        #[arg(long)]
+        format: Option<String>,
+    },
     #[cfg(feature = "bank-api")]
     /// Download and import OFX data from a URL
     Download {
@@ -602,6 +609,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mapping,
         } => {
             import_with_progress(&mut adapter, &sheet_id, &file, format, mapping)?;
+        }
+        Commands::Export { file, format } => {
+            let rows = adapter.list_rows(&sheet_id)?;
+            let mut records = Vec::new();
+            for row in rows {
+                if let Some(rec) = record_from_row(&row) {
+                    records.push(rec);
+                }
+            }
+            let fmt = format
+                .or_else(|| {
+                    file.extension()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                })
+                .ok_or_else(|| "could not determine file format".to_string())?;
+            match fmt.to_lowercase().as_str() {
+                "csv" => import::csv::export(&file, &records)?,
+                "ledger" => import::ledger::export(&file, &records)?,
+                "json" => import::json::export(&file, &records)?,
+                other => return Err(format!("unsupported format: {other}").into()),
+            }
         }
         #[cfg(feature = "bank-api")]
         Commands::Download { url } => {

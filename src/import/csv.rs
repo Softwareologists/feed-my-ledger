@@ -104,3 +104,37 @@ pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
 pub fn parse_with_mapping(path: &Path, mapping: &CsvMapping) -> Result<Vec<Record>, ImportError> {
     CsvImporter::parse_with_mapping(path, mapping)
 }
+
+/// Writes the provided records to a CSV file using the given column mapping.
+pub fn export_with_mapping(
+    path: &Path,
+    records: &[Record],
+    mapping: &CsvMapping,
+) -> Result<(), ImportError> {
+    let mut wtr = csv::Writer::from_path(path).map_err(|e| ImportError::Parse(e.to_string()))?;
+    wtr.write_record([
+        mapping.description.as_str(),
+        mapping.debit_account.as_str(),
+        mapping.credit_account.as_str(),
+        mapping.amount.as_str(),
+        mapping.currency.as_str(),
+    ])
+    .map_err(|e| ImportError::Parse(e.to_string()))?;
+    for rec in records {
+        wtr.write_record([
+            rec.description.as_str(),
+            rec.debit_account.to_string().as_str(),
+            rec.credit_account.to_string().as_str(),
+            rec.amount.to_string().as_str(),
+            rec.currency.as_str(),
+        ])
+        .map_err(|e| ImportError::Parse(e.to_string()))?;
+    }
+    wtr.flush().map_err(|e| ImportError::Parse(e.to_string()))?;
+    Ok(())
+}
+
+/// Convenience wrapper around [`export_with_mapping`].
+pub fn export(path: &Path, records: &[Record]) -> Result<(), ImportError> {
+    export_with_mapping(path, records, &CsvMapping::default())
+}
