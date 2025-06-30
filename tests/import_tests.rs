@@ -93,3 +93,18 @@ fn ledger_and_json_roundtrip() {
     let _ = std::fs::remove_file(lpath);
     let _ = std::fs::remove_file(jpath);
 }
+
+#[test]
+fn csv_export_roundtrip() {
+    let ledger_text = "2024-01-01 Coffee\n    expenses:food  5.00 USD\n    cash\n";
+    let lpath = write_temp("roundtrip.ledger", ledger_text);
+    let records = ledger::parse(&lpath).unwrap();
+    let cpath = write_temp("roundtrip.csv", "");
+    csv::export(&cpath, &records).unwrap();
+    let loaded = csv::parse(&cpath).unwrap();
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(loaded[0].description, "Coffee");
+    assert_eq!(loaded[0].amount, 5.0);
+    let _ = std::fs::remove_file(lpath);
+    let _ = std::fs::remove_file(cpath);
+}
