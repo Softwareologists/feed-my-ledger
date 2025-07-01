@@ -21,7 +21,7 @@ rhai = "1"
 indicatif = "0.17"
 aes-gcm = "0.10"
 rand = "0.8"
-base64 = "0.21"
+base64 = "0.22"
 
 [features]
 bank-api = []
