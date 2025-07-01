@@ -5,6 +5,8 @@ on:
     tags:
       - 'v*.*.*'
       - 'v*.*.*-*'
+
+permissions: read-all
 jobs:
   build:
     name: Build Binaries
@@ -85,6 +87,8 @@ jobs:
     name: Publish Release
     needs: [build, crate]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
