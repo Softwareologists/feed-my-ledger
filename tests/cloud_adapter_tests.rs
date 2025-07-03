@@ -1,6 +1,6 @@
-use rusty_ledger::cloud_adapters::FileAdapter;
-use rusty_ledger::cloud_adapters::google_sheets4::TokenProvider;
-use rusty_ledger::cloud_adapters::{
+use feed_my_ledger::cloud_adapters::FileAdapter;
+use feed_my_ledger::cloud_adapters::google_sheets4::TokenProvider;
+use feed_my_ledger::cloud_adapters::{
     CloudSpreadsheetService, Excel365Adapter, GoogleSheets4Adapter, GoogleSheetsAdapter,
     SpreadsheetError,
 };

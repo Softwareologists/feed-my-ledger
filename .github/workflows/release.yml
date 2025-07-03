@@ -30,17 +30,17 @@ jobs:
         run: cargo build --release
       - name: Strip
         if: runner.os != 'Windows'
-        run: strip target/release/rusty-ledger
+        run: strip target/release/feed-my-ledger
       - name: Package
         id: package
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
-          name=rusty-ledger-${{ github.ref_name }}-${{ matrix.target }}
+          name=feed-my-ledger-${{ github.ref_name }}-${{ matrix.target }}
           bin=target/release
           if [[ "$RUNNER_OS" == 'Windows' ]]; then
-            cp "$bin/rusty-ledger.exe" "$name.exe"
+            cp "$bin/feed-my-ledger.exe" "$name.exe"
             7z a "dist/$name.zip" "$name.exe"
             if command -v sha256sum >/dev/null; then
               sha256sum "dist/$name.zip" > "dist/$name.zip.sha256"
@@ -50,7 +50,7 @@ jobs:
             echo "archive=dist/$name.zip" >> "$GITHUB_OUTPUT"
             echo "checksum=dist/$name.zip.sha256" >> "$GITHUB_OUTPUT"
           else
-            cp "$bin/rusty-ledger" "$name"
+            cp "$bin/feed-my-ledger" "$name"
             tar czf "dist/$name.tar.gz" "$name"
             if command -v sha256sum >/dev/null; then
               sha256sum "dist/$name.tar.gz" > "dist/$name.tar.gz.sha256"

@@ -3,7 +3,7 @@
 The easiest way to use the library is to work with the `Ledger` type directly:
 
 ```rust
-use rusty_ledger::core::{Ledger, Record};
+use feed_my_ledger::core::{Ledger, Record};
 
 let mut ledger = Ledger::default();
 let record = Record::new(
@@ -60,8 +60,8 @@ When integrating with a cloud service, construct an adapter that implements
 `CloudSpreadsheetService` and pass it to `SharedLedger` for multi-user access.
 
 ```rust
-use rusty_ledger::cloud_adapters::GoogleSheetsAdapter;
-use rusty_ledger::core::{Permission, SharedLedger};
+use feed_my_ledger::cloud_adapters::GoogleSheetsAdapter;
+use feed_my_ledger::core::{Permission, SharedLedger};
 
 let adapter = GoogleSheetsAdapter::new();
 let ledger = SharedLedger::new(adapter, "owner@example.com").unwrap();
@@ -76,7 +76,7 @@ Use the parsers in the `import` module to convert existing statements into `Reco
 Each parser returns a vector of records ready for insertion:
 
 ```rust
-use rusty_ledger::import::{csv, ofx, qif};
+use feed_my_ledger::import::{csv, ofx, qif};
 use std::path::Path;
 
 let records = csv::parse(Path::new("transactions.csv"))?;

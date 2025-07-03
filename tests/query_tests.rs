@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use rusty_ledger::core::{Ledger, Query, Record};
+use feed_my_ledger::core::{Ledger, Query, Record};
 use std::str::FromStr;
 
 #[test]

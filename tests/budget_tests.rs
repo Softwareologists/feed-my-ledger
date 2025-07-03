@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use rusty_ledger::core::{Budget, BudgetBook, Ledger, Period, PriceDatabase, Record};
+use feed_my_ledger::core::{Budget, BudgetBook, Ledger, Period, PriceDatabase, Record};
 
 #[test]
 fn monthly_budget_diff() {

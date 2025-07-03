@@ -1,11 +1,11 @@
-# Rusty Ledger (rusty-ledger) 
+# FeedMyLedger (feed-my-ledger)
 
-[![Release](https://github.com/Softwareologists/rusty-ledger/actions/workflows/release.yml/badge.svg)](https://github.com/Softwareologists/rusty-ledger/actions/workflows/release.yml)
-[![CI](https://github.com/Softwareologists/rusty-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/Softwareologists/rusty-ledger/actions/workflows/ci.yml)
+[![Release](https://github.com/Softwareologists/feed-my-ledger/actions/workflows/release.yml/badge.svg)](https://github.com/Softwareologists/feed-my-ledger/actions/workflows/release.yml)
+[![CI](https://github.com/Softwareologists/feed-my-ledger/actions/workflows/ci.yml/badge.svg)](https://github.com/Softwareologists/feed-my-ledger/actions/workflows/ci.yml)
 
 Rust-based library that enables applications to interact with cloud-based spreadsheet services (e.g., Google Sheets) as immutable, append-only databases. It ensures that once data is committed, it cannot be edited or deleted. Adjustments are made by appending new records, akin to double-entry bookkeeping.
 
-![rusty-ledger](https://github.com/user-attachments/assets/6c630732-3bc5-43ac-bcb7-ade199cefcc2)
+![feed-my-ledger](https://github.com/user-attachments/assets/6c630732-3bc5-43ac-bcb7-ade199cefcc2)
 
 # 📦 Features
 - Immutable Data Entries: Once data is committed, it becomes read-only.
@@ -27,12 +27,12 @@ Rust-based library that enables applications to interact with cloud-based spread
 Add the following to your Cargo.toml:
 ```toml
 [dependencies]
-rusty-ledger = "2.0.0"
+feed-my-ledger = "2.0.0"
 ```
 
 ## Usage
 ```rust
-use rusty_ledger::core::{Ledger, Record};
+use feed_my_ledger::core::{Ledger, Record};
 
 fn main() {
     let mut ledger = Ledger::default();
@@ -58,7 +58,7 @@ optionally specify the worksheet name when creating the adapter; otherwise, it
 defaults to `Ledger`:
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::GoogleSheets4Adapter;
+use feed_my_ledger::cloud_adapters::GoogleSheets4Adapter;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -151,7 +151,7 @@ $ cargo run --bin ledger -- download --url "https://bank.example.com/statement.o
 ```
 
 # 🛠️ Configuration
-Rusty Ledger looks for a `config.toml` file in the same directory as the
+FeedMyLedger looks for a `config.toml` file in the same directory as the
 binary. This file stores your OAuth credentials and the spreadsheet ID used by
 the CLI. When using `--local-dir`, only the sheet ID is persisted and no OAuth
 credentials are required.
@@ -209,7 +209,7 @@ credentials are required.
 
 ### Excel 365 Setup
 
-To connect Rusty Ledger to Microsoft Excel 365 you must register an application
+To connect FeedMyLedger to Microsoft Excel 365 you must register an application
 in Azure and provide workbook credentials.
 
 1. Open the [Azure Portal](https://portal.azure.com/) and create a new

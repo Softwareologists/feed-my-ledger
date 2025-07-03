@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
-use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, RetryingService, SpreadsheetError};
+use feed_my_ledger::cloud_adapters::{CloudSpreadsheetService, RetryingService, SpreadsheetError};
 
 struct FlakyAdapter {
     fail_times: usize,

@@ -1,4 +1,4 @@
-use rusty_ledger::import::{csv, json, ledger, ofx, qif};
+use feed_my_ledger::import::{csv, json, ledger, ofx, qif};
 use std::fs::write;
 
 fn write_temp(name: &str, content: &str) -> std::path::PathBuf {

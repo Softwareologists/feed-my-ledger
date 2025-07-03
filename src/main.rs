@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
-use rusty_ledger::cloud_adapters::{
+use feed_my_ledger::cloud_adapters::{
     CloudSpreadsheetService, FileAdapter, google_sheets4::GoogleSheets4Adapter,
 };
-use rusty_ledger::core::{
+use feed_my_ledger::core::{
     Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
 };
-use rusty_ledger::import;
+use feed_my_ledger::import;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -420,7 +420,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         load_config(&config_path).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     if matches!(cli.command, Commands::Login) {
-        rt.block_on(rusty_ledger::cloud_adapters::auth::initial_oauth_login(
+        rt.block_on(feed_my_ledger::cloud_adapters::auth::initial_oauth_login(
             &cfg.google_sheets.credentials_path,
             "tokens.json",
         ))?;
@@ -742,7 +742,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             let script = std::fs::read_to_string(file)?;
-            let result = rusty_ledger::script::run_script(&script, &ledger)?;
+            let result = feed_my_ledger::script::run_script(&script, &ledger)?;
             println!("{}", result);
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),

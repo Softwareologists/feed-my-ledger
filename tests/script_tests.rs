@@ -1,5 +1,5 @@
-use rusty_ledger::core::{Ledger, Record};
-use rusty_ledger::script::run_script;
+use feed_my_ledger::core::{Ledger, Record};
+use feed_my_ledger::script::run_script;
 
 #[test]
 fn totals_cash_debits() {

@@ -1,5 +1,5 @@
-use rusty_ledger::cloud_adapters::GoogleSheetsAdapter;
-use rusty_ledger::core::{AccessError, Permission, Record, SharedLedger};
+use feed_my_ledger::cloud_adapters::GoogleSheetsAdapter;
+use feed_my_ledger::core::{AccessError, Permission, Record, SharedLedger};
 
 #[test]
 fn reader_cannot_write() {

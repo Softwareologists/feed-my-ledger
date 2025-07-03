@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::thread;
 
-use rusty_ledger::cloud_adapters::GoogleSheetsAdapter;
-use rusty_ledger::core::{Permission, Record, SharedLedger};
+use feed_my_ledger::cloud_adapters::GoogleSheetsAdapter;
+use feed_my_ledger::core::{Permission, Record, SharedLedger};
 
 #[test]
 fn concurrent_commits() {

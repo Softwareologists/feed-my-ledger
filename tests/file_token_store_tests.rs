@@ -1,5 +1,5 @@
 use chrono::{Duration, Utc};
-use rusty_ledger::cloud_adapters::auth::{FileTokenStore, OAuth2Token, TokenStore};
+use feed_my_ledger::cloud_adapters::auth::{FileTokenStore, OAuth2Token, TokenStore};
 use uuid::Uuid;
 
 #[test]

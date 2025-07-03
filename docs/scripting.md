@@ -1,6 +1,6 @@
 # Scripting Examples
 
-Rusty Ledger integrates the [Rhai](https://rhai.rs) scripting language. Use the
+FeedMyLedger integrates the [Rhai](https://rhai.rs) scripting language. Use the
 `run-script` command to execute a script against the current ledger. The script
 receives an array named `records` where each entry is a map containing the
 ledger fields.

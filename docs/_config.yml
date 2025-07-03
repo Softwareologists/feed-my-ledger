@@ -1,7 +1,7 @@
 remote_theme: pages-themes/minimal@v0.2.0
 plugins:
 - jekyll-remote-theme
-title: Rusty Ledger
+title: FeedMyLedger
 description: Immutable cloud sheets backed append only ledger
 show_downloads: true
 logo: https://github.com/user-attachments/assets/6c630732-3bc5-43ac-bcb7-ade199cefcc2
