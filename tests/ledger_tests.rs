@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, TimeZone, Utc};
-use rusty_ledger::core::{
+use feed_my_ledger::core::{
     Account, Ledger, LedgerError, Posting, PriceDatabase, Record, RecordError,
 };
 use uuid::Uuid;

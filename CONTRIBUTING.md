@@ -1,6 +1,6 @@
-# Contributing to rusty-ledger
+# Contributing to feed-my-ledger
 
-Thank you for considering contributing to **rusty-ledger**! Your contributions help improve the project and are greatly appreciated.
+Thank you for considering contributing to **feed-my-ledger**! Your contributions help improve the project and are greatly appreciated.
 
 ## Table of Contents
 
@@ -65,8 +65,8 @@ To set up the development environment:
 2. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/rusty-ledger.git
-   cd rusty-ledger
+   git clone https://github.com/yourusername/feed-my-ledger.git
+   cd feed-my-ledger
    ```
 
 3. Build the project:

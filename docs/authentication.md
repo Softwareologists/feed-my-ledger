@@ -5,7 +5,7 @@ Authentication is provided through the `AuthManager` type in
 OAuth2 flows and a `TokenStore` for persisting tokens.
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::auth::{AuthManager, MemoryTokenStore, OAuth2Token, AuthProvider};
+use feed_my_ledger::cloud_adapters::auth::{AuthManager, MemoryTokenStore, OAuth2Token, AuthProvider};
 
 struct MyProvider;
 impl AuthProvider for MyProvider {
@@ -26,7 +26,7 @@ via the CLI. The helper `initial_oauth_login` persists the obtained tokens so
 future requests are authenticated automatically.
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::auth::initial_oauth_login;
+use feed_my_ledger::cloud_adapters::auth::initial_oauth_login;
 
 // Runs the interactive OAuth flow and saves tokens to `tokens.json`.
 tokio::runtime::Runtime::new().unwrap().block_on(async {

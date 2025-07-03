@@ -1,4 +1,4 @@
-//! Rusty Ledger
+//! FeedMyLedger
 //!
 //! This crate provides an append-only immutable database that can interact with
 //! cloud-based spreadsheet services.

@@ -1,4 +1,4 @@
-use rusty_ledger::cloud_adapters::auth::initial_oauth_login;
+use feed_my_ledger::cloud_adapters::auth::initial_oauth_login;
 
 #[tokio::test]
 async fn initial_login_fails_with_missing_credentials() {

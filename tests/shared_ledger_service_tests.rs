@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use rusty_ledger::cloud_adapters::{CloudSpreadsheetService, GoogleSheetsAdapter};
-use rusty_ledger::core::{AccessError, Permission, Record, SharedLedger};
+use feed_my_ledger::cloud_adapters::{CloudSpreadsheetService, GoogleSheetsAdapter};
+use feed_my_ledger::core::{AccessError, Permission, Record, SharedLedger};
 
 struct CountingAdapter {
     inner: GoogleSheetsAdapter,
@@ -22,7 +22,7 @@ impl CloudSpreadsheetService for CountingAdapter {
     fn create_sheet(
         &mut self,
         title: &str,
-    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<String, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         self.inner.create_sheet(title)
     }
 
@@ -30,7 +30,7 @@ impl CloudSpreadsheetService for CountingAdapter {
         &mut self,
         sheet_id: &str,
         values: Vec<String>,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         *self.append_calls.borrow_mut() += 1;
         self.inner.append_row(sheet_id, values)
     }
@@ -39,14 +39,14 @@ impl CloudSpreadsheetService for CountingAdapter {
         &self,
         sheet_id: &str,
         index: usize,
-    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<String>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         self.inner.read_row(sheet_id, index)
     }
 
     fn list_rows(
         &self,
         sheet_id: &str,
-    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<Vec<String>>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         self.inner.list_rows(sheet_id)
     }
 
@@ -54,7 +54,7 @@ impl CloudSpreadsheetService for CountingAdapter {
         &self,
         sheet_id: &str,
         email: &str,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         self.inner.share_sheet(sheet_id, email)
     }
 
@@ -62,7 +62,7 @@ impl CloudSpreadsheetService for CountingAdapter {
         &mut self,
         sheet_id: &str,
         rows: Vec<Vec<String>>,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         *self.append_calls.borrow_mut() += rows.len();
         self.inner.append_rows(sheet_id, rows)
     }
@@ -98,7 +98,7 @@ impl CloudSpreadsheetService for FailingShare {
     fn create_sheet(
         &mut self,
         _title: &str,
-    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<String, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         Ok("sheet1".into())
     }
 
@@ -106,7 +106,7 @@ impl CloudSpreadsheetService for FailingShare {
         &mut self,
         _sheet_id: &str,
         _values: Vec<String>,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
@@ -114,14 +114,14 @@ impl CloudSpreadsheetService for FailingShare {
         &self,
         _sheet_id: &str,
         _index: usize,
-    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<String>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
     fn list_rows(
         &self,
         _sheet_id: &str,
-    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<Vec<String>>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
@@ -129,8 +129,8 @@ impl CloudSpreadsheetService for FailingShare {
         &self,
         _sheet_id: &str,
         _email: &str,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
-        Err(rusty_ledger::cloud_adapters::SpreadsheetError::ShareFailed)
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
+        Err(feed_my_ledger::cloud_adapters::SpreadsheetError::ShareFailed)
     }
 }
 
@@ -151,8 +151,8 @@ impl CloudSpreadsheetService for FailingCreate {
     fn create_sheet(
         &mut self,
         _title: &str,
-    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
-        Err(rusty_ledger::cloud_adapters::SpreadsheetError::Permanent(
+    ) -> Result<String, feed_my_ledger::cloud_adapters::SpreadsheetError> {
+        Err(feed_my_ledger::cloud_adapters::SpreadsheetError::Permanent(
             "boom".into(),
         ))
     }
@@ -161,7 +161,7 @@ impl CloudSpreadsheetService for FailingCreate {
         &mut self,
         _sheet_id: &str,
         _values: Vec<String>,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
@@ -169,14 +169,14 @@ impl CloudSpreadsheetService for FailingCreate {
         &self,
         _sheet_id: &str,
         _index: usize,
-    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<String>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
     fn list_rows(
         &self,
         _sheet_id: &str,
-    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<Vec<String>>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
@@ -184,7 +184,7 @@ impl CloudSpreadsheetService for FailingCreate {
         &self,
         _sheet_id: &str,
         _email: &str,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 }
@@ -199,7 +199,7 @@ fn new_propagates_spreadsheet_error() {
     };
     assert_eq!(
         err,
-        rusty_ledger::cloud_adapters::SpreadsheetError::Permanent("boom".into())
+        feed_my_ledger::cloud_adapters::SpreadsheetError::Permanent("boom".into())
     );
 }
 
@@ -233,7 +233,7 @@ impl CloudSpreadsheetService for FailingList {
     fn create_sheet(
         &mut self,
         _title: &str,
-    ) -> Result<String, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<String, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         Ok("sheet1".into())
     }
 
@@ -241,7 +241,7 @@ impl CloudSpreadsheetService for FailingList {
         &mut self,
         _sheet_id: &str,
         _values: Vec<String>,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
@@ -249,22 +249,22 @@ impl CloudSpreadsheetService for FailingList {
         &self,
         _sheet_id: &str,
         _index: usize,
-    ) -> Result<Vec<String>, rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<Vec<String>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 
     fn list_rows(
         &self,
         _sheet_id: &str,
-    ) -> Result<Vec<Vec<String>>, rusty_ledger::cloud_adapters::SpreadsheetError> {
-        Err(rusty_ledger::cloud_adapters::SpreadsheetError::SheetNotFound)
+    ) -> Result<Vec<Vec<String>>, feed_my_ledger::cloud_adapters::SpreadsheetError> {
+        Err(feed_my_ledger::cloud_adapters::SpreadsheetError::SheetNotFound)
     }
 
     fn share_sheet(
         &self,
         _sheet_id: &str,
         _email: &str,
-    ) -> Result<(), rusty_ledger::cloud_adapters::SpreadsheetError> {
+    ) -> Result<(), feed_my_ledger::cloud_adapters::SpreadsheetError> {
         unimplemented!()
     }
 }
@@ -276,6 +276,6 @@ fn from_sheet_propagates_errors() {
     let err = res.err().unwrap();
     assert_eq!(
         err,
-        rusty_ledger::cloud_adapters::SpreadsheetError::SheetNotFound
+        feed_my_ledger::cloud_adapters::SpreadsheetError::SheetNotFound
     );
 }

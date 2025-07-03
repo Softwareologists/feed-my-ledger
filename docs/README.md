@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains detailed documentation for the Rusty Ledger project. The following guides are available:
+This directory contains detailed documentation for the FeedMyLedger project. The following guides are available:
 
 - [Module Architecture](architecture.md)
 - [Data Model](data_model.md)

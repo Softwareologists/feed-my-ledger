@@ -21,12 +21,12 @@ title: Overview
 Add the following to your Cargo.toml:
 ```toml
 [dependencies]
-rusty-ledger = "2.0.0"
+feed-my-ledger = "2.0.0"
 ```
 
 ### Usage
 ```rust
-use rusty_ledger::core::{Ledger, Record};
+use feed_my_ledger::core::{Ledger, Record};
 
 fn main() {
     let mut ledger = Ledger::default();
@@ -52,7 +52,7 @@ optionally specify the worksheet name when creating the adapter; otherwise, it
 defaults to `Ledger`:
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::GoogleSheets4Adapter;
+use feed_my_ledger::cloud_adapters::GoogleSheets4Adapter;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -75,7 +75,7 @@ To integrate with Microsoft Excel 365 instead, use the `Excel365Adapter` which
 talks to the Microsoft Graph API:
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::Excel365Adapter;
+use feed_my_ledger::cloud_adapters::Excel365Adapter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `auth` must provide OAuth tokens scoped for Microsoft Graph
@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 If you prefer to avoid cloud services entirely, `FileAdapter` stores rows in local CSV files:
 
 ```rust,no_run
-use rusty_ledger::cloud_adapters::FileAdapter;
+use feed_my_ledger::cloud_adapters::FileAdapter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut service = FileAdapter::new("./ledger_data");
@@ -183,7 +183,7 @@ $ cargo run --bin ledger -- download --url "https://bank.example.com/statement.o
 ```
 
 ## 🛠️ Configuration
-Rusty Ledger looks for a `config.toml` file in the same directory as the
+FeedMyLedger looks for a `config.toml` file in the same directory as the
 binary. This file stores your OAuth credentials and the spreadsheet ID used by
 the CLI. When running with `--local-dir`, only the sheet ID is saved and no
 OAuth configuration is needed.
@@ -251,7 +251,7 @@ Azure and a workbook stored in OneDrive or SharePoint.
 3. In **Certificates & secrets** create a client secret and note its value. From
    the **Overview** page also record the **Application (client) ID** and
    **Directory (tenant) ID**.
-4. Create or open the workbook you want Rusty Ledger to use and copy its ID from
+4. Create or open the workbook you want FeedMyLedger to use and copy its ID from
    the share link (or obtain it via the Graph Explorer).
 5. Add the following section to `config.toml`:
    ```toml

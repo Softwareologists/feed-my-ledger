@@ -1,4 +1,4 @@
-# AGENT Guidelines for rusty-ledger
+# AGENT Guidelines for feed-my-ledger
 
 This file outlines best practices for working with this Rust project.
 
