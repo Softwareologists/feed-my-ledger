@@ -5,7 +5,7 @@
 
 Rust-based library that enables applications to interact with cloud-based spreadsheet services (e.g., Google Sheets) as immutable, append-only databases. It ensures that once data is committed, it cannot be edited or deleted. Adjustments are made by appending new records, akin to double-entry bookkeeping.
 
-![feed-my-ledger](https://github.com/user-attachments/assets/6c630732-3bc5-43ac-bcb7-ade199cefcc2)
+![feed-my-ledger-logo](https://github.com/user-attachments/assets/fae6a921-00cc-471d-9335-fcdbb99362a0)
 
 # 📦 Features
 - Immutable Data Entries: Once data is committed, it becomes read-only.
