@@ -123,7 +123,7 @@ impl FileTokenStore {
         if let Ok(data) = serde_json::to_vec(&self.tokens) {
             let cipher = Aes256Gcm::new_from_slice(&self.key).expect("key");
             let mut nonce = [0u8; 12];
-            rand::thread_rng().fill_bytes(&mut nonce);
+            rand::rng().fill_bytes(&mut nonce);
             if let Ok(mut encrypted) = cipher.encrypt(Nonce::from_slice(&nonce), data.as_ref()) {
                 let mut out = nonce.to_vec();
                 out.append(&mut encrypted);
