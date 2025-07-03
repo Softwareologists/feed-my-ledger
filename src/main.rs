@@ -743,7 +743,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             let script = std::fs::read_to_string(file)?;
             let result = feed_my_ledger::script::run_script(&script, &ledger)?;
-            println!("{}", result);
+            println!("{result}");
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),
     }
