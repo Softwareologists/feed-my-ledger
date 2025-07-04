@@ -76,24 +76,35 @@ pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
 
 #[cfg(feature = "bank-api")]
 pub async fn download(url: &str) -> Result<Vec<Record>, ImportError> {
-    use hyper::{Client, body::to_bytes};
-    use hyper_rustls::HttpsConnectorBuilder;
+    use hyper::body::Bytes;
+    use http_body_util::{BodyExt, Full};
+    use hyper_util::client::legacy::Client;
+    use hyper_util::client::legacy::connect::HttpConnector;
+    use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
     let https = HttpsConnectorBuilder::new()
         .with_native_roots()
         .https_or_http()
         .enable_http1()
         .build();
-    let client = Client::builder().build::<_, hyper::Body>(https);
+    let client = Client::builder().build::<_, Full<Bytes>>(https);
     let uri: hyper::Uri = url
         .parse::<hyper::Uri>()
         .map_err(|e| ImportError::Parse(e.to_string()))?;
+    let req = hyper::Request::builder()
+        .method(hyper::Method::GET)
+        .uri(uri)
+        .body(Full::new(Bytes::new()))
+        .map_err(|e| ImportError::Parse(e.to_string()))?;
     let res = client
-        .get(uri)
+        .request(req)
         .await
         .map_err(|e| ImportError::Io(std::io::Error::other(e)))?;
-    let bytes = to_bytes(res.into_body())
+    let bytes = res
+        .into_body()
+        .collect()
         .await
-        .map_err(|e| ImportError::Io(std::io::Error::other(e)))?;
+        .map_err(|e| ImportError::Io(std::io::Error::other(e)))?
+        .to_bytes();
     let text = String::from_utf8(bytes.to_vec()).map_err(|e| ImportError::Parse(e.to_string()))?;
     parse_str(&text)
 }
