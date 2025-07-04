@@ -1,17 +1,24 @@
 use super::google_sheets4::TokenProvider;
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
-use hyper::client::HttpConnector;
-use hyper::http::header;
-use hyper::{Body, Client, Method, Request, body::to_bytes};
-use hyper_rustls::HttpsConnectorBuilder;
+use http_body_util::BodyExt;
+use http_body_util::Full;
+use hyper::Method;
+use hyper::Request;
+use hyper::body::Bytes;
+use hyper::header;
+use hyper_util::client::legacy::Client;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::rt::TokioExecutor;
 use serde_json::json;
+use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
 
 /// Adapter backed by the Microsoft Graph API for Excel 365.
 pub struct Excel365Adapter {
-    client: Client<hyper_rustls::HttpsConnector<HttpConnector>, Body>,
+    client: Client<yup_oauth2::hyper_rustls::HttpsConnector<HttpConnector>, Full<Bytes>>,
     auth: Box<dyn TokenProvider>,
     rt: tokio::runtime::Runtime,
-    graph_base_url: String,
+    drive_base_url: String,
+    sheets_base_url: String,
     sheet_name: String,
 }
 
@@ -37,17 +44,21 @@ impl Excel365Adapter {
         graph_base_url: impl Into<String>,
         sheet_name: impl Into<String>,
     ) -> Self {
+        let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
         let https = HttpsConnectorBuilder::new()
             .with_native_roots()
+            .expect("native roots")
             .https_or_http()
             .enable_http1()
             .build();
-        let client = Client::builder().build::<_, Body>(https);
+        let client = Client::builder(TokioExecutor::new()).build::<_, Full<Bytes>>(https);
+        let graph_base_url = graph_base_url.into();
         Self {
             client,
             auth: Box::new(auth),
-            rt: tokio::runtime::Runtime::new().expect("tokio runtime"),
-            graph_base_url: graph_base_url.into(),
+            rt,
+            drive_base_url: graph_base_url.clone(),
+            sheets_base_url: graph_base_url,
             sheet_name: sheet_name.into(),
         }
     }
@@ -62,13 +73,13 @@ impl Excel365Adapter {
             .await?;
         let url = format!(
             "{}me/drive/items/{}/workbook/worksheets",
-            self.graph_base_url, sheet_id
+            self.sheets_base_url, sheet_id
         );
         let req = Request::builder()
             .method(Method::GET)
             .uri(&url)
             .header(header::AUTHORIZATION, format!("Bearer {token}"))
-            .body(Body::empty())
+            .body(Full::new(Bytes::new()))
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let res = self
             .client
@@ -76,10 +87,13 @@ impl Excel365Adapter {
             .await
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let exists = if res.status().is_success() {
-            let bytes = to_bytes(res.into_body())
+            let bytes = res
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
-            let body: serde_json::Value = serde_json::from_slice(&bytes)
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
+            let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             body["value"].as_array().is_some_and(|sheets| {
                 sheets
@@ -94,7 +108,7 @@ impl Excel365Adapter {
         }
         let add_url = format!(
             "{}me/drive/items/{}/workbook/worksheets/add",
-            self.graph_base_url, sheet_id
+            self.sheets_base_url, sheet_id
         );
         let body_json = json!({ "name": self.sheet_name });
         let req = Request::builder()
@@ -102,7 +116,7 @@ impl Excel365Adapter {
             .uri(add_url)
             .header(header::AUTHORIZATION, format!("Bearer {token}"))
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(body_json.to_string()))
+            .body(Full::from(Bytes::from(body_json.to_string())))
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let res = self
             .client
@@ -125,7 +139,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
             let token = self
                 .get_token(&["https://graph.microsoft.com/.default"])
                 .await?;
-            let url = format!("{}me/drive/root/children", self.graph_base_url);
+            let url = format!("{}me/drive/root/children", self.drive_base_url);
             let body_json = json!({
                 "name": format!("{}.xlsx", title),
                 "file": {}
@@ -135,7 +149,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .uri(&url)
                 .header(header::AUTHORIZATION, format!("Bearer {token}"))
                 .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body_json.to_string()))
+                .body(Full::from(Bytes::from(body_json.to_string())))
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
@@ -145,10 +159,13 @@ impl CloudSpreadsheetService for Excel365Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("create failed".into()));
             }
-            let bytes = to_bytes(res.into_body())
+            let bytes = res
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
-            let body: serde_json::Value = serde_json::from_slice(&bytes)
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
+            let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let id = body["id"].as_str().unwrap_or_default().to_string();
             self.ensure_sheet(&id).await?;
@@ -164,7 +181,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .await?;
             let url = format!(
                 "{}me/drive/items/{}/workbook/worksheets/{}/tables/Table1/rows/add",
-                self.graph_base_url, sheet_id, self.sheet_name
+                self.sheets_base_url, sheet_id, self.sheet_name
             );
             let row: Vec<serde_json::Value> =
                 values.into_iter().map(serde_json::Value::String).collect();
@@ -174,7 +191,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .uri(&url)
                 .header(header::AUTHORIZATION, format!("Bearer {token}"))
                 .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body_json.to_string()))
+                .body(Full::from(Bytes::from(body_json.to_string())))
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
@@ -197,7 +214,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .await?;
             let url = format!(
                 "{}me/drive/items/{}/workbook/worksheets/{}/range(address='A{}:Z{}')",
-                self.graph_base_url,
+                self.sheets_base_url,
                 sheet_id,
                 self.sheet_name,
                 index + 1,
@@ -207,7 +224,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .method(Method::GET)
                 .uri(&url)
                 .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                .body(Body::empty())
+                .body(Full::new(Bytes::new()))
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
@@ -217,10 +234,13 @@ impl CloudSpreadsheetService for Excel365Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::RowNotFound);
             }
-            let bytes = to_bytes(res.into_body())
+            let bytes = res
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
-            let body: serde_json::Value = serde_json::from_slice(&bytes)
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
+            let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let row = body["values"]
                 .as_array()
@@ -244,13 +264,13 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .await?;
             let url = format!(
                 "{}me/drive/items/{}/workbook/worksheets/{}/usedRange(valuesOnly=true)",
-                self.graph_base_url, sheet_id, self.sheet_name
+                self.sheets_base_url, sheet_id, self.sheet_name
             );
             let req = Request::builder()
                 .method(Method::GET)
                 .uri(&url)
                 .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                .body(Body::empty())
+                .body(Full::new(Bytes::new()))
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
@@ -260,10 +280,13 @@ impl CloudSpreadsheetService for Excel365Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("list failed".into()));
             }
-            let bytes = to_bytes(res.into_body())
+            let bytes = res
+                .into_body()
+                .collect()
                 .await
-                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
-            let body: serde_json::Value = serde_json::from_slice(&bytes)
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
+            let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let rows = body["values"].as_array().cloned().unwrap_or_default();
             Ok(rows
@@ -284,7 +307,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
             let token = self
                 .get_token(&["https://graph.microsoft.com/.default"])
                 .await?;
-            let url = format!("{}me/drive/items/{}/invite", self.graph_base_url, sheet_id);
+            let url = format!("{}me/drive/items/{}/invite", self.drive_base_url, sheet_id);
             let body_json = json!({
                 "requireSignIn": true,
                 "sendInvitation": true,
@@ -296,7 +319,7 @@ impl CloudSpreadsheetService for Excel365Adapter {
                 .uri(&url)
                 .header(header::AUTHORIZATION, format!("Bearer {token}"))
                 .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(body_json.to_string()))
+                .body(Full::from(Bytes::from(body_json.to_string())))
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let res = self
                 .client
