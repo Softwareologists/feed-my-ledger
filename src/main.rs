@@ -43,6 +43,10 @@ struct ScheduleConfig {
 
 #[derive(Serialize, Deserialize, Default)]
 struct Config {
+    /// The unique, non-empty name of this ledger instance (required).
+    name: String,
+    /// Optional password for row signature generation (never logged).
+    password: Option<String>,
     google_sheets: GoogleSheetsConfig,
     #[serde(default)]
     budgets: Vec<BudgetConfig>,
@@ -277,11 +281,19 @@ impl std::error::Error for CliError {}
 fn load_config(path: &PathBuf) -> Result<Config, CliError> {
     let data = fs::read_to_string(path).map_err(|_| CliError::MissingConfig)?;
     let cfg: Config = toml::from_str(&data).map_err(|e| CliError::InvalidConfig(e.to_string()))?;
+    // Validate 'name' field: must be present and non-empty
+    if cfg.name.trim().is_empty() {
+        return Err(CliError::InvalidConfig(
+            "'name' field is missing or empty in config.toml".to_string(),
+        ));
+    }
+    // Optionally: enforce uniqueness of 'name' if multiple ledgers are supported (not implemented here)
     if cfg.google_sheets.credentials_path.is_empty() {
         return Err(CliError::InvalidConfig(
             "google_sheets.credentials_path is missing".to_string(),
         ));
     }
+    // Never log or expose the password field
     Ok(cfg)
 }
 

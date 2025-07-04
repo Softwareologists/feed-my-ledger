@@ -79,14 +79,14 @@ pub async fn download(url: &str) -> Result<Vec<Record>, ImportError> {
     use http_body_util::{BodyExt, Full};
     use hyper::body::Bytes;
     use hyper_util::client::legacy::Client;
-    use hyper_util::client::legacy::connect::HttpConnector;
+    use hyper_util::rt::TokioExecutor;
     use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
     let https = HttpsConnectorBuilder::new()
-        .with_native_roots()
+        .with_native_roots()? // Use ? to unwrap Result
         .https_or_http()
         .enable_http1()
         .build();
-    let client = Client::builder().build::<_, Full<Bytes>>(https);
+    let client = Client::builder(TokioExecutor::new()).build::<_, Full<Bytes>>(https);
     let uri: hyper::Uri = url
         .parse::<hyper::Uri>()
         .map_err(|e| ImportError::Parse(e.to_string()))?;

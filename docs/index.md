@@ -215,6 +215,8 @@ OAuth configuration is needed.
 
 5. Add the following contents, replacing the placeholder values:
    ```toml
+   name = "MyLedger"
+   # password = "supersecret"  # Optional
    [google_sheets]
    credentials_path = "path_to_credentials.json"
    spreadsheet_id = "<ID>"

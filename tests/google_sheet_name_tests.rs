@@ -49,7 +49,7 @@ async fn ensures_sheet_exists() {
             .await
             .unwrap();
     if let Err(e) = result {
-        println!("append_row error: {:?}", e);
+        println!("append_row error: {e:?}");
     }
     let requests = server.received_requests().await.unwrap();
     for req in &requests {
