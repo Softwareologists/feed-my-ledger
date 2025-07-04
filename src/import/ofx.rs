@@ -76,8 +76,8 @@ pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
 
 #[cfg(feature = "bank-api")]
 pub async fn download(url: &str) -> Result<Vec<Record>, ImportError> {
-    use hyper::body::Bytes;
     use http_body_util::{BodyExt, Full};
+    use hyper::body::Bytes;
     use hyper_util::client::legacy::Client;
     use hyper_util::client::legacy::connect::HttpConnector;
     use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;

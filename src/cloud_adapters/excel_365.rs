@@ -1,16 +1,16 @@
 use super::google_sheets4::TokenProvider;
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
+use http_body_util::BodyExt;
 use http_body_util::Full;
-use hyper::body::Bytes;
-use hyper_util::rt::TokioExecutor;
-use hyper::header;
 use hyper::Method;
 use hyper::Request;
+use hyper::body::Bytes;
+use hyper::header;
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
-use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
+use hyper_util::rt::TokioExecutor;
 use serde_json::json;
-use http_body_util::BodyExt;
+use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
 
 /// Adapter backed by the Microsoft Graph API for Excel 365.
 pub struct Excel365Adapter {
@@ -87,7 +87,12 @@ impl Excel365Adapter {
             .await
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let exists = if res.status().is_success() {
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             body["value"].as_array().is_some_and(|sheets| {
@@ -154,7 +159,12 @@ impl CloudSpreadsheetService for Excel365Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("create failed".into()));
             }
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let id = body["id"].as_str().unwrap_or_default().to_string();
@@ -224,7 +234,12 @@ impl CloudSpreadsheetService for Excel365Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::RowNotFound);
             }
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let row = body["values"]
@@ -265,7 +280,12 @@ impl CloudSpreadsheetService for Excel365Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("list failed".into()));
             }
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let rows = body["values"].as_array().cloned().unwrap_or_default();

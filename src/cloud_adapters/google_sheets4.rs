@@ -1,17 +1,17 @@
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
+use http_body_util::BodyExt;
 use http_body_util::Full;
-use hyper::body::Bytes;
-use hyper_util::rt::{TokioExecutor};
-use hyper::header;
 use hyper::Method;
 use hyper::Request;
+use hyper::body::Bytes;
+use hyper::header;
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
-use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
+use hyper_util::rt::TokioExecutor;
 use serde_json::json;
 use std::future::Future;
 use std::pin::Pin;
-use http_body_util::BodyExt;
+use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
 
 /// Asynchronous token retrieval interface used by the adapter.
 pub trait TokenProvider: Send + Sync + 'static {
@@ -127,7 +127,12 @@ impl GoogleSheets4Adapter {
             .await
             .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let exists = if res.status().is_success() {
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             body["sheets"].as_array().is_some_and(|sheets| {
@@ -192,7 +197,12 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("create failed".into()));
             }
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let id = body["spreadsheetId"]
@@ -262,7 +272,12 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::RowNotFound);
             }
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let row = body["values"]
@@ -303,7 +318,12 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
             if !res.status().is_success() {
                 return Err(SpreadsheetError::Transient("list failed".into()));
             }
-            let bytes = res.into_body().collect().await.map_err(|e| SpreadsheetError::Transient(e.to_string()))?.to_bytes();
+            let bytes = res
+                .into_body()
+                .collect()
+                .await
+                .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+                .to_bytes();
             let body: serde_json::Value = serde_json::from_slice(&bytes[..])
                 .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
             let rows = body["values"].as_array().cloned().unwrap_or_default();
