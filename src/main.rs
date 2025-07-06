@@ -769,7 +769,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if mismatched.is_empty() {
                 println!("All rows verified");
             } else {
-                println!("Tampered rows: {:?}", mismatched);
+                println!("Tampered rows: {mismatched:?}");
                 return Err("tampering detected".into());
             }
         }
