@@ -7,6 +7,7 @@ use feed_my_ledger::cloud_adapters::{
     CloudSpreadsheetService, FileAdapter, google_sheets4::GoogleSheets4Adapter,
 };
 use feed_my_ledger::core::{
+    utils::generate_signature,
     Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
 };
 use feed_my_ledger::import;
@@ -319,6 +320,7 @@ fn record_from_row(row: &[String]) -> Option<Record> {
     }
 
     let amount = row[5].parse::<f64>().ok()?;
+    let splits_col = if row.len() > 10 { &row[10] } else { "" };
     Some(Record {
         id: Uuid::nil(),
         timestamp: Utc::now(),
@@ -343,8 +345,8 @@ fn record_from_row(row: &[String]) -> Option<Record> {
             row[9].split(',').map(|s| s.to_string()).collect()
         },
         cleared: false,
-        splits: if row.len() >= 11 && !row[10].is_empty() {
-            serde_json::from_str(&row[10]).ok()?
+        splits: if !splits_col.is_empty() {
+            serde_json::from_str(splits_col).ok()?
         } else {
             Vec::new()
         },
@@ -390,6 +392,7 @@ fn import_with_progress(
     file: &Path,
     format: Option<String>,
     mapping: CsvMapArgs,
+    signature: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format
         .or_else(|| {
@@ -416,7 +419,7 @@ fn import_with_progress(
 
     let pb = indicatif::ProgressBar::new(records.len() as u64);
     for rec in records {
-        adapter.append_row(sheet_id, rec.to_row())?;
+        adapter.append_row(sheet_id, rec.to_row_hashed(signature))?;
         pb.inc(1);
     }
     pb.finish_with_message("done");
@@ -430,6 +433,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = PathBuf::from("config.toml");
     let mut cfg =
         load_config(&config_path).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+    let signature = generate_signature(&cfg.name, cfg.password.as_deref())
+        .map_err(|e| Box::new(CliError::InvalidConfig(e)) as Box<dyn std::error::Error>)?;
 
     if matches!(cli.command, Commands::Login) {
         rt.block_on(feed_my_ledger::cloud_adapters::auth::initial_oauth_login(
@@ -567,7 +572,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             let record = Record::new_split(description, postings, currency, None, None, vec![])?;
-            adapter.append_row(&sheet_id, record.to_row())?;
+            adapter.append_row(&sheet_id, record.to_row_hashed(&signature))?;
         }
         Commands::List => {
             let rows = adapter.list_rows(&sheet_id)?;
@@ -618,7 +623,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 vec![],
             )?;
             record.reference_id = Some(reference);
-            adapter.append_row(&sheet_id, record.to_row())?;
+            adapter.append_row(&sheet_id, record.to_row_hashed(&signature))?;
         }
         Commands::Share { email, .. } => {
             adapter
@@ -631,7 +636,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             format,
             mapping,
         } => {
-            import_with_progress(&mut *adapter, &sheet_id, &file, format, mapping)?;
+            import_with_progress(&mut *adapter, &sheet_id, &file, format, mapping, &signature)?;
         }
         Commands::Export { file, format } => {
             let rows = adapter.list_rows(&sheet_id)?;
@@ -659,7 +664,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Download { url } => {
             let records = rt.block_on(import::ofx::download(&url))?;
             for rec in records {
-                adapter.append_row(&sheet_id, rec.to_row())?;
+                adapter.append_row(&sheet_id, rec.to_row_hashed(&signature))?;
             }
         }
         Commands::Balance { account, query } => {

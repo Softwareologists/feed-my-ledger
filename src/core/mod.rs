@@ -9,6 +9,7 @@ pub mod sharing;
 pub use sharing::{AccessError, Permission, SharedLedger};
 pub mod prices;
 pub use prices::PriceDatabase;
+pub mod utils;
 pub mod query;
 pub use query::{ParseError as QueryParseError, Query};
 pub mod account;
@@ -200,6 +201,18 @@ impl Record {
             self.tags.join(","),
             splits,
         ]
+    }
+
+    /// Converts the record into a row with an appended SHA-256 hash.
+    ///
+    /// The hash is computed using [`hash_row`] over the row values and the
+    /// provided signature. This allows tamper detection when the row is stored
+    /// externally.
+    pub fn to_row_hashed(&self, signature: &str) -> Vec<String> {
+        let mut row = self.to_row();
+        let hash = crate::core::utils::hash_row(&row, signature);
+        row.push(hash);
+        row
     }
 
     /// Converts the cleared status into a row for spreadsheet storage.

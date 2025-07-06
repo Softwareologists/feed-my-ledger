@@ -140,8 +140,9 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         } else {
             row[9].split(',').map(|s| s.to_string()).collect()
         };
-        let splits = if row.len() >= 11 && !row[10].is_empty() {
-            serde_json::from_str(&row[10])
+        let splits_col = if row.len() > 10 { &row[10] } else { "" };
+        let splits = if !splits_col.is_empty() {
+            serde_json::from_str(splits_col)
                 .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?
         } else {
             Vec::new()
@@ -195,8 +196,9 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         self.check(user, Permission::Write)?;
         {
             let mut service = self.service.lock().expect("service mutex poisoned");
+            let sig = crate::core::utils::generate_signature(user, None).map_err(|_| AccessError::ShareFailed)?;
             service
-                .append_row(&self.sheet_id, record.to_row())
+                .append_row(&self.sheet_id, record.to_row_hashed(&sig))
                 .map_err(|_| AccessError::ShareFailed)?;
         }
         self.ledger
