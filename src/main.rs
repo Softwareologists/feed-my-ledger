@@ -8,7 +8,7 @@ use feed_my_ledger::cloud_adapters::{
 };
 use feed_my_ledger::core::{
     Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
-    utils::generate_signature,
+    utils::generate_signature, verify_sheet,
 };
 use feed_my_ledger::import;
 use serde::{Deserialize, Serialize};
@@ -258,6 +258,8 @@ enum Commands {
         #[arg(long)]
         file: PathBuf,
     },
+    /// Verify stored rows against their hashes
+    Verify,
 }
 
 #[derive(Debug)]
@@ -761,6 +763,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let script = std::fs::read_to_string(file)?;
             let result = feed_my_ledger::script::run_script(&script, &ledger)?;
             println!("{result}");
+        }
+        Commands::Verify => {
+            let mismatched = verify_sheet(&*adapter, &sheet_id, &signature)?;
+            if mismatched.is_empty() {
+                println!("All rows verified");
+            } else {
+                println!("Tampered rows: {mismatched:?}");
+                return Err("tampering detected".into());
+            }
         }
         Commands::Switch { .. } | Commands::Login => unreachable!(),
     }
