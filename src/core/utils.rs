@@ -11,8 +11,8 @@
 // # Errors
 // Returns an error if the name is missing or empty.
 
-use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use sha2::{Digest, Sha256};
 
 /// Generates a Base64-encoded signature string from a name and optional password.
@@ -57,7 +57,7 @@ pub fn hash_row(values: &[String], signature: &str) -> String {
     let mut hasher = Sha256::new();
     for v in values {
         hasher.update(v.as_bytes());
-        hasher.update(&[0u8]);
+        hasher.update([0u8]);
     }
     hasher.update(signature.as_bytes());
     format!("{:x}", hasher.finalize())

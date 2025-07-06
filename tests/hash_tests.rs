@@ -1,4 +1,7 @@
-use feed_my_ledger::core::{Record, utils::{generate_signature, hash_row}};
+use feed_my_ledger::core::{
+    Record,
+    utils::{generate_signature, hash_row},
+};
 
 #[test]
 fn hash_changes_on_field_or_signature() {
@@ -11,7 +14,8 @@ fn hash_changes_on_field_or_signature() {
         None,
         None,
         vec![],
-    ).unwrap();
+    )
+    .unwrap();
     let sig1 = generate_signature("ledger", None).unwrap();
     let sig2 = generate_signature("ledger2", Some("pw")).unwrap();
     let row = record.to_row();
@@ -35,7 +39,8 @@ fn hash_column_ignored() {
         None,
         None,
         vec![],
-    ).unwrap();
+    )
+    .unwrap();
     let sig = generate_signature("ledger", None).unwrap();
     let mut row = record.to_row_hashed(&sig);
     let orig_hash = row.last().cloned().unwrap();
@@ -56,7 +61,8 @@ fn to_row_hashed_appends_hash() {
         None,
         None,
         vec![],
-    ).unwrap();
+    )
+    .unwrap();
     let sig = generate_signature("ledger", None).unwrap();
     let row = record.to_row_hashed(&sig);
     assert_eq!(row.len(), record.to_row().len() + 1);

@@ -196,7 +196,8 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         self.check(user, Permission::Write)?;
         {
             let mut service = self.service.lock().expect("service mutex poisoned");
-            let sig = crate::core::utils::generate_signature(user, None).map_err(|_| AccessError::ShareFailed)?;
+            let sig = crate::core::utils::generate_signature(user, None)
+                .map_err(|_| AccessError::ShareFailed)?;
             service
                 .append_row(&self.sheet_id, record.to_row_hashed(&sig))
                 .map_err(|_| AccessError::ShareFailed)?;
