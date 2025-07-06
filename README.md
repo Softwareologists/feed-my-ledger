@@ -15,6 +15,7 @@ Rust-based library that enables applications to interact with cloud-based spread
 - User Authentication: Users authenticate via OAuth2 to link their cloud accounts.
 - Data Sharing: Users can share their data with others, controlling access permissions.
 - Resilient API Calls: Automatically retries transient errors with exponential backoff.
+- Ledger Verification: Detects tampering by recomputing row hashes.
 
 # 🚀 Getting Started
 ## Prerequisites
@@ -148,6 +149,12 @@ When compiled with the `bank-api` feature, you can download statements directly:
 
 ```bash
 $ cargo run --bin ledger -- download --url "https://bank.example.com/statement.ofx"
+```
+
+Verify ledger integrity:
+
+```bash
+$ cargo run --bin ledger -- verify
 ```
 
 # 🛠️ Configuration
