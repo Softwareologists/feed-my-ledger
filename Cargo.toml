@@ -12,7 +12,7 @@ hyper = "*"
 hyper-util = "*"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 clap = { version = "4", features = ["derive"] }
-toml = "0.8"
+toml = "0.9"
 yup-oauth2 = "12"
 csv = "1"
 iso_currency = "0.5"
