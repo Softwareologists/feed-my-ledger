@@ -138,6 +138,13 @@ $ cargo run --bin ledger -- import --format csv --file transactions.csv \
 ```
 Mapping flags override the default column names when importing CSV files.
 
+If your CSV does not include a currency column, you can provide a default value:
+
+```bash
+$ cargo run --bin ledger -- import --format csv --file transactions.csv --currency USD
+```
+All imported rows will use the supplied currency.
+
 Ledger text and JSON formats can also be imported:
 
 ```bash
