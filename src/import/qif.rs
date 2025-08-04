@@ -46,9 +46,9 @@ impl QifImporter {
                         _ => vendor.clone().unwrap_or_default(),
                     };
                     let (debit, credit) = if a < 0.0 {
-                        ("expenses".to_string(), "bank".to_string())
+                        ("expenses".to_string(), vendor.or(Option::from("bank".to_string())).unwrap())
                     } else {
-                        ("bank".to_string(), "income".to_string())
+                        (vendor.or(Option::from("bank".to_string())).unwrap(), "income".to_string())
                     };
                     let mut rec = Record::new(
                         desc,
@@ -60,7 +60,7 @@ impl QifImporter {
                         None,
                         vec![],
                     )?;
-                    rec.transaction_description = Some(rec.description.clone());
+                    rec.transaction_description = memo;
                     rec.transaction_date = date;
                     records.push(rec);
                 }
