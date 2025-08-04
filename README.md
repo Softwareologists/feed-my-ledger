@@ -84,34 +84,34 @@ The crate ships with a small CLI for local experimentation. To add a record and
 view the stored data:
 
 ```bash
-$ cargo run --bin ledger -- add \
+$ cargo run --bin feed-my-ledger -- add \
     --description "Coffee" \
     --debit cash --credit expenses \
     --amount 3.5 --currency USD
-$ cargo run --bin ledger -- list
+$ cargo run --bin feed-my-ledger -- list
 ```
 
 Pass `--local-dir <DIR>` to store rows in local CSV files instead of a cloud
 service:
 
 ```bash
-$ cargo run --bin ledger -- --local-dir ledger_data add \
+$ cargo run --bin feed-my-ledger -- --local-dir ledger_data add \
     --description "Coffee" \
     --debit cash --credit expenses \
     --amount 3.5 --currency USD
-$ cargo run --bin ledger -- --local-dir ledger_data list
+$ cargo run --bin feed-my-ledger -- --local-dir ledger_data list
 ```
 
 Before issuing API commands for the first time, authorize the application:
 
 ```bash
-$ cargo run --bin ledger -- login
+$ cargo run --bin feed-my-ledger -- login
 ```
 
 Adjustments reference an existing record by ID:
 
 ```bash
-$ cargo run --bin ledger -- adjust \
+$ cargo run --bin feed-my-ledger -- adjust \
     --id <RECORD_ID> --description "Refund" \
     --debit expenses --credit cash \
     --amount 3.5 --currency USD
@@ -120,41 +120,48 @@ $ cargo run --bin ledger -- adjust \
 Share the active sheet:
 
 ```bash
-$ cargo run --bin ledger -- share --email someone@example.com
+$ cargo run --bin feed-my-ledger -- share --email someone@example.com
 ```
 
 Switch to a different sheet by URL:
 
 ```bash
-$ cargo run --bin ledger -- switch --link "https://docs.google.com/spreadsheets/d/<ID>/edit"
+$ cargo run --bin feed-my-ledger -- switch --link "https://docs.google.com/spreadsheets/d/<ID>/edit"
 ```
 
 Import statements from existing files. Supported formats are **csv**, **qif**, **ofx**, **ledger**, and **json**:
 
 ```bash
-$ cargo run --bin ledger -- import --format csv --file transactions.csv \
+$ cargo run --bin feed-my-ledger -- import --format csv --file transactions.csv \
     --map-description desc --map-debit debit --map-credit credit \
     --map-amount value --map-currency curr
 ```
 Mapping flags override the default column names when importing CSV files.
 
+If your CSV does not include a currency column, you can provide a default value:
+
+```bash
+$ cargo run --bin feed-my-ledger -- import --format csv --file transactions.csv --currency USD
+```
+All imported rows will use the supplied currency.
+
 Ledger text and JSON formats can also be imported:
 
 ```bash
-$ cargo run --bin ledger -- import --format ledger --file statement.ledger
-$ cargo run --bin ledger -- import --format json --file data.json
+$ cargo run --bin feed-my-ledger -- import --format ledger --file statement.ledger
+$ cargo run --bin feed-my-ledger -- import --format json --file data.json
 ```
 
 When compiled with the `bank-api` feature, you can download statements directly:
 
 ```bash
-$ cargo run --bin ledger -- download --url "https://bank.example.com/statement.ofx"
+$ cargo run --bin feed-my-ledger -- download --url "https://bank.example.com/statement.ofx"
 ```
 
 Verify ledger integrity:
 
 ```bash
-$ cargo run --bin ledger -- verify
+$ cargo run --bin feed-my-ledger -- verify
 ```
 
 # 🛠️ Configuration
