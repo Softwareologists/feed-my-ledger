@@ -455,6 +455,12 @@ fn import_with_progress(
         other => return Err(format!("unsupported format: {other}").into()),
     }?;
 
+    if let Some(cur) = currency_clone {
+        for rec in &mut records {
+            rec.currency = cur.clone();
+        }
+    }
+
     let rows = filter_new_records(adapter, sheet_id, records, signature)?;
     let pb = indicatif::ProgressBar::new(rows.len() as u64);
     for row in rows {
