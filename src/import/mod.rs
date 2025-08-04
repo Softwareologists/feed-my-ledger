@@ -46,6 +46,7 @@ pub trait StatementImporter {
 }
 
 pub mod csv;
+pub mod dedup;
 pub mod json;
 pub mod ledger;
 pub mod ofx;
