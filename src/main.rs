@@ -216,6 +216,8 @@ enum Commands {
         format: Option<String>,
         #[arg(long)]
         currency: Option<String>,
+        #[arg(long)]
+        date_format: Option<String>,
         #[command(flatten)]
         mapping: CsvMapArgs,
     },
@@ -405,6 +407,7 @@ async fn adapter_from_config(
     Ok(adapter)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn import_with_progress(
     adapter: &mut dyn CloudSpreadsheetService,
     sheet_id: &str,
@@ -413,6 +416,7 @@ fn import_with_progress(
     mapping: CsvMapArgs,
     currency: Option<String>,
     signature: &str,
+    date_format: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format
         .or_else(|| {
@@ -422,6 +426,8 @@ fn import_with_progress(
         })
         .ok_or_else(|| "could not determine file format".to_string())?;
     let mapping = mapping.into_mapping();
+    let date_fmt = date_format.as_deref();
+
     let records = match fmt.to_lowercase().as_str() {
         "csv" => {
             if let Some(cur) = currency.as_deref() {
@@ -436,14 +442,34 @@ fn import_with_progress(
                 import::csv::parse(file)
             }
         }
-        "qif" => match currency.as_deref() {
-            Some(cur) => import::qif::parse_with_currency(file, cur),
-            None => import::qif::parse(file),
-        },
-        "ofx" => match currency.as_deref() {
-            Some(cur) => import::ofx::parse_with_currency(file, cur),
-            None => import::ofx::parse(file),
-        },
+
+        "qif" => {
+            let mut recs = if let Some(fmt) = date_fmt {
+                import::qif::parse_with_date_format(file, fmt)?
+            } else {
+                import::qif::parse(file)?
+            };
+            if let Some(cur) = currency.as_deref() {
+                for rec in &mut recs {
+                    rec.currency = cur.to_string();
+                }
+            }
+            Ok(recs)
+        }
+        "ofx" => {
+            let mut recs = if let Some(fmt) = date_fmt {
+                import::ofx::parse_with_date_format(file, fmt)?
+            } else {
+                import::ofx::parse(file)?
+            };
+            if let Some(cur) = currency.as_deref() {
+                for rec in &mut recs {
+                    rec.currency = cur.to_string();
+                }
+            }
+            Ok(recs)
+        }
+
         "ledger" => match currency.as_deref() {
             Some(cur) => import::ledger::parse_with_currency(file, cur),
             None => import::ledger::parse(file),
@@ -454,12 +480,6 @@ fn import_with_progress(
         },
         other => return Err(format!("unsupported format: {other}").into()),
     }?;
-
-    if let Some(cur) = currency_clone {
-        for rec in &mut records {
-            rec.currency = cur.clone();
-        }
-    }
 
     let rows = filter_new_records(adapter, sheet_id, records, signature)?;
     let pb = indicatif::ProgressBar::new(rows.len() as u64);
@@ -690,6 +710,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             file,
             format,
             currency,
+            date_format,
             mapping,
         } => {
             import_with_progress(
@@ -700,6 +721,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mapping,
                 currency,
                 &signature,
+                date_format,
             )?;
         }
         Commands::Export { file, format } => {

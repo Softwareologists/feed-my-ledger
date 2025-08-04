@@ -154,6 +154,7 @@ async fn append_rows_insert_option() {
                 "tags",
                 "splits",
                 "transaction_description",
+                "transaction_date",
                 "hash"
             ], ["a"], ["b"]],
         })))

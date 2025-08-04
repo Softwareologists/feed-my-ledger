@@ -188,3 +188,27 @@ fn ofx_parses_transaction_date() {
     );
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn qif_custom_date_format() {
+    let qif_content = "D2024/05/03\nT-10.00\nPStore\n^";
+    let path = write_temp("custom.qif", qif_content);
+    let records = qif::parse_with_date_format(&path, "%Y/%m/%d").unwrap();
+    assert_eq!(
+        records[0].transaction_date,
+        Some(NaiveDate::from_ymd_opt(2024, 5, 3).unwrap())
+    );
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn ofx_custom_date_format() {
+    let data = "<STMTTRN><TRNAMT>-5.00</TRNAMT><DTPOSTED>2024-05-04</DTPOSTED><NAME>Store</NAME></STMTTRN>";
+    let path = write_temp("custom.ofx", data);
+    let records = ofx::parse_with_date_format(&path, "%Y-%m-%d").unwrap();
+    assert_eq!(
+        records[0].transaction_date,
+        Some(NaiveDate::from_ymd_opt(2024, 5, 4).unwrap())
+    );
+    let _ = std::fs::remove_file(path);
+}
