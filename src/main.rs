@@ -14,6 +14,7 @@ use feed_my_ledger::import;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
+use tracing::{debug, info};
 use uuid::Uuid;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
@@ -102,7 +103,7 @@ impl CsvMapArgs {
     }
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(name = "ledger", about = "Interact with a cloud ledger")]
 struct Cli {
     /// Directory for local CSV storage. When set, the CLI uses FileAdapter
@@ -113,7 +114,7 @@ struct Cli {
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum BudgetCommands {
     Add {
         #[arg(long)]
@@ -135,7 +136,7 @@ enum BudgetCommands {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum ScheduleCommands {
     Add {
         #[arg(long)]
@@ -153,7 +154,7 @@ enum ScheduleCommands {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     #[command(subcommand)]
     Budget(BudgetCommands),
@@ -452,15 +453,21 @@ fn import_with_progress(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+    info!("Starting feed-my-ledger");
     let rt = tokio::runtime::Runtime::new()?;
     let cli = Cli::parse();
+    debug!(?cli, "Parsed CLI arguments");
+    let Cli { local_dir, command } = cli;
     let config_path = PathBuf::from("config.toml");
     let mut cfg =
         load_config(&config_path).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
     let signature = generate_signature(&cfg.name, cfg.password.as_deref())
         .map_err(|e| Box::new(CliError::InvalidConfig(e)) as Box<dyn std::error::Error>)?;
 
-    if matches!(cli.command, Commands::Login) {
+    if matches!(command, Commands::Login) {
         rt.block_on(feed_my_ledger::cloud_adapters::auth::initial_oauth_login(
             &cfg.google_sheets.credentials_path,
             "tokens.json",
@@ -469,7 +476,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    if let Commands::Switch { link } = &cli.command {
+    if let Commands::Switch { link } = &command {
         let id = parse_sheet_id(link);
         cfg.google_sheets.spreadsheet_id = Some(id.clone());
         save_config(&config_path, &cfg);
@@ -477,7 +484,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let mut adapter: Box<dyn CloudSpreadsheetService> = if let Some(dir) = &cli.local_dir {
+    let mut adapter: Box<dyn CloudSpreadsheetService> = if let Some(dir) = &local_dir {
         std::fs::create_dir_all(dir)?;
         Box::new(FileAdapter::new(dir))
     } else {
@@ -493,7 +500,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    match cli.command {
+    info!(?command, "Dispatching command");
+    match command {
         Commands::Budget(BudgetCommands::Add {
             account,
             amount,

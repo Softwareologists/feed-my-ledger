@@ -24,6 +24,8 @@ rand = "0.9"
 base64 = "0.22"
 sha2 = "0.10"
 http-body-util = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 
 [features]
 bank-api = []
