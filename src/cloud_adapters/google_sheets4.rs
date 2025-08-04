@@ -236,7 +236,10 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 .into_iter()
                 .map(|r| r.into_iter().map(serde_json::Value::String).collect())
                 .collect();
-            let body_json = json!({"values": rows_json});
+            let body_json = json!({
+                "majorDimension": "ROWS",
+                "values": rows_json,
+            });
             let req = Request::builder()
                 .method(Method::POST)
                 .uri(&url)
