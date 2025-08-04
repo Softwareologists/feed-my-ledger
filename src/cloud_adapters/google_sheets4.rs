@@ -215,18 +215,28 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
     }
 
     fn append_row(&mut self, sheet_id: &str, values: Vec<String>) -> Result<(), SpreadsheetError> {
+        self.append_rows(sheet_id, vec![values])
+    }
+
+    fn append_rows(
+        &mut self,
+        sheet_id: &str,
+        rows: Vec<Vec<String>>,
+    ) -> Result<(), SpreadsheetError> {
         self.rt.block_on(async {
             self.ensure_sheet(sheet_id).await?;
             let token = self
                 .get_token(&["https://www.googleapis.com/auth/spreadsheets"])
                 .await?;
             let url = format!(
-                "{}spreadsheets/{}/values/{}:append?valueInputOption=USER_ENTERED",
+                "{}spreadsheets/{}/values/{}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
                 self.sheets_base_url, sheet_id, self.sheet_name
             );
-            let row: Vec<serde_json::Value> =
-                values.into_iter().map(serde_json::Value::String).collect();
-            let body_json = json!({"values": [row]});
+            let rows_json: Vec<Vec<serde_json::Value>> = rows
+                .into_iter()
+                .map(|r| r.into_iter().map(serde_json::Value::String).collect())
+                .collect();
+            let body_json = json!({"values": rows_json});
             let req = Request::builder()
                 .method(Method::POST)
                 .uri(&url)
