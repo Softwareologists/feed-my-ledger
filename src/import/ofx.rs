@@ -81,6 +81,15 @@ pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     OfxImporter::parse(path)
 }
 
+/// Parses an OFX file and sets all record currencies to the provided value.
+pub fn parse_with_currency(path: &Path, currency: &str) -> Result<Vec<Record>, ImportError> {
+    let mut records = OfxImporter::parse(path)?;
+    for rec in &mut records {
+        rec.currency = currency.to_string();
+    }
+    Ok(records)
+}
+
 pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
     OfxImporter::parse_str(input)
 }
