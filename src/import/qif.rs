@@ -2,6 +2,7 @@ use std::path::Path;
 
 use super::{ImportError, StatementImporter};
 use crate::core::Record;
+use chrono::NaiveDate;
 
 pub struct QifImporter;
 
@@ -16,12 +17,18 @@ impl QifImporter {
         let mut amount: Option<f64> = None;
         let mut memo: Option<String> = None;
         let mut vendor: Option<String> = None;
+        let mut date: Option<NaiveDate> = None;
 
         for line in input.lines() {
             if line.starts_with('!') {
                 continue;
-            } else if line.starts_with('D') {
-                // date line - ignored
+            } else if let Some(rest) = line.strip_prefix('D') {
+                let s = rest.trim();
+                let parsed = NaiveDate::parse_from_str(s, "%Y-%m-%d")
+                    .or_else(|_| NaiveDate::parse_from_str(s, "%m/%d/%Y"));
+                if let Ok(d) = parsed {
+                    date = Some(d);
+                }
             } else if let Some(rest) = line.strip_prefix('T') {
                 let val = rest.trim().replace(',', "");
                 let parsed = val
@@ -54,11 +61,13 @@ impl QifImporter {
                         vec![],
                     )?;
                     rec.transaction_description = Some(rec.description.clone());
+                    rec.transaction_date = date;
                     records.push(rec);
                 }
                 amount = None;
                 memo = None;
                 vendor = None;
+                date = None;
             }
         }
         Ok(records)
@@ -73,4 +82,8 @@ impl StatementImporter for QifImporter {
 
 pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     QifImporter::parse(path)
+}
+
+pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
+    QifImporter::parse_str(input)
 }

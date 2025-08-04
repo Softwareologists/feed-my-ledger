@@ -142,11 +142,20 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         };
         let splits_col = if row.len() > 10 { &row[10] } else { "" };
         let tx_desc = if row.len() > 11 { &row[11] } else { "" };
+        let tx_date_str = if row.len() > 12 { &row[12] } else { "" };
         let splits = if !splits_col.is_empty() {
             serde_json::from_str(splits_col)
                 .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?
         } else {
             Vec::new()
+        };
+        let transaction_date = if tx_date_str.is_empty() {
+            None
+        } else {
+            Some(
+                chrono::NaiveDate::parse_from_str(tx_date_str, "%Y-%m-%d")
+                    .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?,
+            )
         };
 
         Ok(Record {
@@ -169,6 +178,7 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             } else {
                 Some(tx_desc.to_string())
             },
+            transaction_date,
             cleared: false,
             splits,
         })
