@@ -2,6 +2,7 @@ use std::path::Path;
 
 use super::{ImportError, StatementImporter};
 use crate::core::Record;
+use chrono::NaiveDate;
 
 pub struct OfxImporter;
 
@@ -29,6 +30,14 @@ impl OfxImporter {
                     .parse()
                     .map_err(|e: std::num::ParseFloatError| ImportError::Parse(e.to_string()))?;
                 let name = Self::extract_tag(block, "NAME").unwrap_or_default();
+                let date = Self::extract_tag(block, "DTPOSTED").and_then(|s| {
+                    let s = s.trim();
+                    if s.len() >= 8 {
+                        NaiveDate::parse_from_str(&s[..8], "%Y%m%d").ok()
+                    } else {
+                        None
+                    }
+                });
                 let (debit, credit) = if amount < 0.0 {
                     ("expenses".to_string(), "bank".to_string())
                 } else {
@@ -45,6 +54,7 @@ impl OfxImporter {
                     vec![],
                 )?;
                 rec.transaction_description = Some(rec.description.clone());
+                rec.transaction_date = date;
                 records.push(rec);
             }
         }

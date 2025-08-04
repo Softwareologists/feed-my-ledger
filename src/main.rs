@@ -327,6 +327,7 @@ fn record_from_row(row: &[String]) -> Option<Record> {
     let amount = row[5].parse::<f64>().ok()?;
     let splits_col = if row.len() > 10 { &row[10] } else { "" };
     let tx_desc = if row.len() > 11 { &row[11] } else { "" };
+    let tx_date_str = if row.len() > 12 { &row[12] } else { "" };
     Some(Record {
         id: Uuid::nil(),
         timestamp: Utc::now(),
@@ -354,6 +355,11 @@ fn record_from_row(row: &[String]) -> Option<Record> {
             None
         } else {
             Some(tx_desc.to_string())
+        },
+        transaction_date: if tx_date_str.is_empty() {
+            None
+        } else {
+            chrono::NaiveDate::parse_from_str(tx_date_str, "%Y-%m-%d").ok()
         },
         cleared: false,
         splits: if !splits_col.is_empty() {
