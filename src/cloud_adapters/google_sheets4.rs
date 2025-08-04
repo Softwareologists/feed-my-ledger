@@ -11,6 +11,7 @@ use hyper_util::rt::TokioExecutor;
 use serde_json::json;
 use std::future::Future;
 use std::pin::Pin;
+use tracing::{debug, info};
 use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
 
 /// Asynchronous token retrieval interface used by the adapter.
@@ -154,6 +155,7 @@ impl GoogleSheets4Adapter {
         let body_json = json!({
             "requests": [{"addSheet": {"properties": {"title": self.sheet_name}}}]
         });
+        debug!(sheet_id, body = %body_json, "Ensure sheet request");
         let req = Request::builder()
             .method(Method::POST)
             .uri(update_url)
@@ -177,11 +179,13 @@ impl GoogleSheets4Adapter {
 impl CloudSpreadsheetService for GoogleSheets4Adapter {
     fn create_sheet(&mut self, title: &str) -> Result<String, SpreadsheetError> {
         self.rt.block_on(async {
+            info!(title, "Creating sheet");
             let token = self
                 .get_token(&["https://www.googleapis.com/auth/spreadsheets"])
                 .await?;
             let url = format!("{}spreadsheets", self.sheets_base_url);
             let body_json = json!({"properties": {"title": title}});
+            debug!(title, body = %body_json, "Create sheet request");
             let req = Request::builder()
                 .method(Method::POST)
                 .uri(&url)
@@ -210,6 +214,7 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 .unwrap_or_default()
                 .to_string();
             self.ensure_sheet(&id).await?;
+            info!(title, id, "Created sheet");
             Ok(id)
         })
     }
@@ -240,6 +245,7 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
                 "majorDimension": "ROWS",
                 "values": rows_json,
             });
+            debug!(sheet_id, body = %body_json, "Append rows request");
             let req = Request::builder()
                 .method(Method::POST)
                 .uri(&url)
@@ -355,11 +361,13 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
 
     fn share_sheet(&self, sheet_id: &str, email: &str) -> Result<(), SpreadsheetError> {
         self.rt.block_on(async {
+            info!(sheet_id, email, "Sharing sheet");
             let token = self
                 .get_token(&["https://www.googleapis.com/auth/drive"])
                 .await?;
             let url = format!("{}files/{}/permissions", self.drive_base_url, sheet_id);
             let body_json = json!({"type": "user", "role": "writer", "emailAddress": email});
+            debug!(sheet_id, body = %body_json, "Share sheet request");
             let req = Request::builder()
                 .method(Method::POST)
                 .uri(&url)

@@ -1,5 +1,6 @@
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
 use crate::core::utils::hash_row;
+use tracing::{debug, info};
 
 /// Recomputes hashes for all ledger rows and returns the zero-based indices
 /// of rows whose stored hash does not match the computed value.
@@ -9,6 +10,7 @@ pub fn verify_sheet(
     signature: &str,
 ) -> Result<Vec<usize>, SpreadsheetError> {
     let rows = adapter.list_rows(sheet_id)?;
+    info!(sheet_id, row_count = rows.len(), "Verifying sheet");
     let mut mismatched = Vec::new();
     for (idx, row) in rows.iter().enumerate() {
         if row.len() < 2 || row.first().map(|s| s.as_str()) == Some("status") {
@@ -17,10 +19,12 @@ pub fn verify_sheet(
         if let Some(stored_hash) = row.last() {
             let computed = hash_row(&row[..row.len() - 1], signature);
             if &computed != stored_hash {
+                debug!(index = idx, "Row hash mismatch");
                 mismatched.push(idx);
             }
         }
     }
+    info!(mismatched = mismatched.len(), "Verification complete");
     Ok(mismatched)
 }
 
