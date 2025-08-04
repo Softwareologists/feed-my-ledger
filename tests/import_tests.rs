@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use feed_my_ledger::import::{csv, json, ledger, ofx, qif};
 use std::fs::write;
 
@@ -161,4 +162,29 @@ fn csv_export_roundtrip() {
     assert_eq!(loaded[0].amount, 5.0);
     let _ = std::fs::remove_file(lpath);
     let _ = std::fs::remove_file(cpath);
+}
+
+#[test]
+fn qif_parses_transaction_date() {
+    let data = "D2024-05-01\nT-10.00\nPStore\n^";
+    let path = write_temp("date.qif", data);
+    let records = qif::parse(&path).unwrap();
+    assert_eq!(
+        records[0].transaction_date,
+        Some(NaiveDate::from_ymd_opt(2024, 5, 1).unwrap())
+    );
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn ofx_parses_transaction_date() {
+    let data =
+        "<STMTTRN><TRNAMT>-5.00</TRNAMT><DTPOSTED>20240502</DTPOSTED><NAME>Store</NAME></STMTTRN>";
+    let path = write_temp("date.ofx", data);
+    let records = ofx::parse(&path).unwrap();
+    assert_eq!(
+        records[0].transaction_date,
+        Some(NaiveDate::from_ymd_opt(2024, 5, 2).unwrap())
+    );
+    let _ = std::fs::remove_file(path);
 }

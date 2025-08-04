@@ -12,6 +12,7 @@ A ledger entry is represented by the `Record` struct. Important fields include:
 - `external_reference` – Optional external identifier such as an invoice number.
 - `tags` – Free form strings used for categorisation.
 - `transaction_description` – Original description from an imported statement line.
+- `transaction_date` – Date the transaction occurred, sourced from imported statements.
 
 Records are immutable after being committed to the ledger. Adjustments are stored as new records referencing the original entry.
 
