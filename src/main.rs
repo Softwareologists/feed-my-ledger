@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use feed_my_ledger::cloud_adapters::{
-    CloudSpreadsheetService, FileAdapter, RetryingService, google_sheets4::GoogleSheets4Adapter,
+    CloudSpreadsheetService, FileAdapter, RetryingService, SpreadsheetError,
+    google_sheets4::GoogleSheets4Adapter,
 };
 use feed_my_ledger::core::{
     Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
@@ -482,13 +483,23 @@ fn import_with_progress(
     }?;
 
     let rows = filter_new_records(adapter, sheet_id, records, signature)?;
+    append_rows_with_progress(adapter, sheet_id, rows)?;
+    Ok(())
+}
+
+const BATCH_SIZE: usize = 100;
+
+fn append_rows_with_progress(
+    adapter: &mut dyn CloudSpreadsheetService,
+    sheet_id: &str,
+    rows: Vec<Vec<String>>,
+) -> Result<(), SpreadsheetError> {
     let pb = indicatif::ProgressBar::new(rows.len() as u64);
-    for row in rows {
-        adapter.append_row(sheet_id, row)?;
-        pb.inc(1);
+    for chunk in rows.chunks(BATCH_SIZE) {
+        adapter.append_rows(sheet_id, chunk.to_vec())?;
+        pb.inc(chunk.len() as u64);
     }
     pb.finish_with_message("done");
-
     Ok(())
 }
 
@@ -865,7 +876,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    use super::CsvMapArgs;
+    use super::{CloudSpreadsheetService, CsvMapArgs, SpreadsheetError, append_rows_with_progress};
+    use std::cell::RefCell;
+
+    struct MockAdapter {
+        calls: RefCell<Vec<Vec<Vec<String>>>>,
+    }
+
+    impl MockAdapter {
+        fn new() -> Self {
+            Self {
+                calls: RefCell::new(Vec::new()),
+            }
+        }
+    }
+
+    impl CloudSpreadsheetService for MockAdapter {
+        fn create_sheet(&mut self, _title: &str) -> Result<String, SpreadsheetError> {
+            Ok(String::new())
+        }
+
+        fn append_row(
+            &mut self,
+            _sheet_id: &str,
+            _values: Vec<String>,
+        ) -> Result<(), SpreadsheetError> {
+            Err(SpreadsheetError::Unknown)
+        }
+
+        fn append_rows(
+            &mut self,
+            _sheet_id: &str,
+            rows: Vec<Vec<String>>,
+        ) -> Result<(), SpreadsheetError> {
+            self.calls.borrow_mut().push(rows);
+            Ok(())
+        }
+
+        fn read_row(
+            &self,
+            _sheet_id: &str,
+            _index: usize,
+        ) -> Result<Vec<String>, SpreadsheetError> {
+            Ok(Vec::new())
+        }
+
+        fn list_rows(&self, _sheet_id: &str) -> Result<Vec<Vec<String>>, SpreadsheetError> {
+            Ok(Vec::new())
+        }
+
+        fn share_sheet(&self, _sheet_id: &str, _email: &str) -> Result<(), SpreadsheetError> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn mapping_conversion_none() {
@@ -888,5 +951,22 @@ mod tests {
         assert_eq!(mapping.credit_account, "credit");
         assert_eq!(mapping.amount, "amount");
         assert_eq!(mapping.currency, "curr");
+    }
+
+    #[test]
+    fn append_rows_batches_input() {
+        let mut adapter = MockAdapter::new();
+        let rows: Vec<Vec<String>> = (0..105).map(|i| vec![i.to_string()]).collect();
+        append_rows_with_progress(&mut adapter, "sheet", rows.clone()).unwrap();
+        let calls = adapter.calls.borrow();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].len(), 100);
+        assert_eq!(calls[1].len(), 5);
+        let collected: Vec<Vec<String>> = calls
+            .iter()
+            .cloned()
+            .flat_map(|chunk| chunk.into_iter())
+            .collect();
+        assert_eq!(collected, rows);
     }
 }
