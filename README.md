@@ -102,6 +102,15 @@ $ cargo run --bin feed-my-ledger -- --local-dir ledger_data add \
 $ cargo run --bin feed-my-ledger -- --local-dir ledger_data list
 ```
 
+Adjust how many rows are sent per request with `--batch-size` (default `100`):
+
+```bash
+$ cargo run --bin feed-my-ledger -- --batch-size 50 add \
+    --description "Coffee" \
+    --debit cash --credit expenses \
+    --amount 3.5 --currency USD
+```
+
 Before issuing API commands for the first time, authorize the application:
 
 ```bash

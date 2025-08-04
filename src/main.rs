@@ -21,6 +21,8 @@ use tracing::{debug, info};
 use uuid::Uuid;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
+const BATCH_SIZE: usize = 100;
+
 #[derive(Serialize, Deserialize, Default)]
 struct GoogleSheetsConfig {
     credentials_path: String,
@@ -113,6 +115,9 @@ struct Cli {
     /// instead of a cloud service.
     #[arg(long)]
     local_dir: Option<PathBuf>,
+    /// Number of rows to append per request
+    #[arg(long, default_value_t = BATCH_SIZE)]
+    batch_size: usize,
     #[command(subcommand)]
     command: Commands,
 }
@@ -418,6 +423,7 @@ fn import_with_progress(
     currency: Option<String>,
     signature: &str,
     date_format: Option<String>,
+    batch_size: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format
         .or_else(|| {
@@ -483,19 +489,18 @@ fn import_with_progress(
     }?;
 
     let rows = filter_new_records(adapter, sheet_id, records, signature)?;
-    append_rows_with_progress(adapter, sheet_id, rows)?;
+    append_rows_with_progress(adapter, sheet_id, rows, batch_size)?;
     Ok(())
 }
-
-const BATCH_SIZE: usize = 100;
 
 fn append_rows_with_progress(
     adapter: &mut dyn CloudSpreadsheetService,
     sheet_id: &str,
     rows: Vec<Vec<String>>,
+    batch_size: usize,
 ) -> Result<(), SpreadsheetError> {
     let pb = indicatif::ProgressBar::new(rows.len() as u64);
-    for chunk in rows.chunks(BATCH_SIZE) {
+    for chunk in rows.chunks(batch_size) {
         adapter.append_rows(sheet_id, chunk.to_vec())?;
         pb.inc(chunk.len() as u64);
     }
@@ -512,7 +517,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = tokio::runtime::Runtime::new()?;
     let cli = Cli::parse();
     debug!(?cli, "Parsed CLI arguments");
-    let Cli { local_dir, command } = cli;
+    let Cli {
+        local_dir,
+        batch_size,
+        command,
+    } = cli;
     let config_path = PathBuf::from("config.toml");
     let mut cfg =
         load_config(&config_path).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
@@ -733,6 +742,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 currency,
                 &signature,
                 date_format,
+                batch_size,
             )?;
         }
         Commands::Export { file, format } => {
@@ -957,7 +967,7 @@ mod tests {
     fn append_rows_batches_input() {
         let mut adapter = MockAdapter::new();
         let rows: Vec<Vec<String>> = (0..105).map(|i| vec![i.to_string()]).collect();
-        append_rows_with_progress(&mut adapter, "sheet", rows.clone()).unwrap();
+        append_rows_with_progress(&mut adapter, "sheet", rows.clone(), 100).unwrap();
         let calls = adapter.calls.borrow();
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].len(), 100);
