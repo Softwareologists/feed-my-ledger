@@ -78,6 +78,18 @@ fn csv_parsing_with_mapping() {
 }
 
 #[test]
+fn csv_parsing_with_currency_override() {
+    let data = "description,debit_account,credit_account,amount\nCoffee,expenses:food,cash,3.50\n";
+    let path = write_temp("test_override.csv", data);
+    let records = csv::parse_with_currency(&path, "USD").unwrap();
+    assert_eq!(records.len(), 1);
+    let r = &records[0];
+    assert_eq!(r.description, "Coffee");
+    assert_eq!(r.currency, "USD");
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn ledger_and_json_roundtrip() {
     let ledger_text = "2024-01-01 Coffee\n    expenses:food  5.00 USD\n    cash\n";
     let lpath = write_temp("test.ledger", ledger_text);

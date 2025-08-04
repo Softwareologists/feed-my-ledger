@@ -211,6 +211,8 @@ enum Commands {
         file: PathBuf,
         #[arg(long)]
         format: Option<String>,
+        #[arg(long)]
+        currency: Option<String>,
         #[command(flatten)]
         mapping: CsvMapArgs,
     },
@@ -400,6 +402,7 @@ fn import_with_progress(
     file: &Path,
     format: Option<String>,
     mapping: CsvMapArgs,
+    currency: Option<String>,
     signature: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format
@@ -409,11 +412,18 @@ fn import_with_progress(
                 .map(|s| s.to_string())
         })
         .ok_or_else(|| "could not determine file format".to_string())?;
-
-    let records = match fmt.to_lowercase().as_str() {
+    let mapping = mapping.into_mapping();
+    let currency_clone = currency.clone();
+    let mut records = match fmt.to_lowercase().as_str() {
         "csv" => {
-            if let Some(map) = mapping.into_mapping() {
-                import::csv::parse_with_mapping(file, &map)
+            if let Some(cur) = currency.as_deref() {
+                if let Some(ref map) = mapping {
+                    import::csv::parse_with_mapping_and_currency(file, map, cur)
+                } else {
+                    import::csv::parse_with_currency(file, cur)
+                }
+            } else if let Some(ref map) = mapping {
+                import::csv::parse_with_mapping(file, map)
             } else {
                 import::csv::parse(file)
             }
@@ -424,6 +434,12 @@ fn import_with_progress(
         "json" => import::json::parse(file),
         other => return Err(format!("unsupported format: {other}").into()),
     }?;
+
+    if let Some(cur) = currency_clone {
+        for rec in &mut records {
+            rec.currency = cur.clone();
+        }
+    }
 
     let pb = indicatif::ProgressBar::new(records.len() as u64);
     for rec in records {
@@ -642,9 +658,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Import {
             file,
             format,
+            currency,
             mapping,
         } => {
-            import_with_progress(&mut *adapter, &sheet_id, &file, format, mapping, &signature)?;
+            import_with_progress(
+                &mut *adapter,
+                &sheet_id,
+                &file,
+                format,
+                mapping,
+                currency,
+                &signature,
+            )?;
         }
         Commands::Export { file, format } => {
             let rows = adapter.list_rows(&sheet_id)?;
