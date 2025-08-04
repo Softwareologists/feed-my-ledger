@@ -93,6 +93,14 @@ impl StatementImporter for QifImporter {
 pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     QifImporter::parse(path)
 }
+/// Parses a QIF file and sets all record currencies to the provided value.
+pub fn parse_with_currency(path: &Path, currency: &str) -> Result<Vec<Record>, ImportError> {
+    let mut records = QifImporter::parse(path)?;
+    for rec in &mut records {
+        rec.currency = currency.to_string();
+    }
+    Ok(records)
+}
 
 pub fn parse_with_date_format(path: &Path, fmt: &str) -> Result<Vec<Record>, ImportError> {
     QifImporter::parse_internal(path, Some(fmt))
