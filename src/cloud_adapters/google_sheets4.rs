@@ -14,6 +14,21 @@ use std::pin::Pin;
 use tracing::{debug, info};
 use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
 
+const HEADER_ROW: [&str; 13] = [
+    "id",
+    "timestamp",
+    "description",
+    "debit_account",
+    "credit_account",
+    "amount",
+    "currency",
+    "reference_id",
+    "external_reference",
+    "tags",
+    "splits",
+    "transaction_description",
+    "hash",
+];
 /// Asynchronous token retrieval interface used by the adapter.
 pub trait TokenProvider: Send + Sync + 'static {
     fn token<'a>(
@@ -109,6 +124,40 @@ impl GoogleSheets4Adapter {
 
     async fn get_token(&self, scopes: &[&str]) -> Result<String, SpreadsheetError> {
         self.auth.token(scopes).await
+    }
+
+    async fn sheet_is_empty(&self, sheet_id: &str) -> Result<bool, SpreadsheetError> {
+        let token = self
+            .get_token(&["https://www.googleapis.com/auth/spreadsheets"])
+            .await?;
+        let url = format!(
+            "{}spreadsheets/{}/values/{}",
+            self.sheets_base_url, sheet_id, self.sheet_name
+        );
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri(&url)
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Full::new(Bytes::new()))
+            .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+        let res = self
+            .client
+            .request(req)
+            .await
+            .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+        if !res.status().is_success() {
+            return Err(SpreadsheetError::Transient("list failed".into()));
+        }
+        let bytes = res
+            .into_body()
+            .collect()
+            .await
+            .map_err(|e| SpreadsheetError::Transient(e.to_string()))?
+            .to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&bytes[..])
+            .map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
+        let rows = body["values"].as_array().cloned().unwrap_or_default();
+        Ok(rows.is_empty())
     }
 
     async fn ensure_sheet(&self, sheet_id: &str) -> Result<(), SpreadsheetError> {
@@ -230,6 +279,10 @@ impl CloudSpreadsheetService for GoogleSheets4Adapter {
     ) -> Result<(), SpreadsheetError> {
         self.rt.block_on(async {
             self.ensure_sheet(sheet_id).await?;
+            let mut rows = rows;
+            if self.sheet_is_empty(sheet_id).await? {
+                rows.insert(0, HEADER_ROW.iter().map(|s| s.to_string()).collect());
+            }
             let token = self
                 .get_token(&["https://www.googleapis.com/auth/spreadsheets"])
                 .await?;
