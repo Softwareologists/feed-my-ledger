@@ -90,6 +90,48 @@ fn csv_parsing_with_currency_override() {
 }
 
 #[test]
+fn qif_parsing_with_currency_override() {
+    let qif_content = "!Type:Bank\nD01/01/2024\nT-10.00\nPCoffee\nM\n^\n";
+    let path = write_temp("qif_override.qif", qif_content);
+    let records = qif::parse_with_currency(&path, "EUR").unwrap();
+    assert_eq!(records[0].currency, "EUR");
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn ofx_parsing_with_currency_override() {
+    let ofx_content = r#"<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
+<STMTTRN><TRNAMT>-7.00</TRNAMT><NAME>Snack</NAME></STMTTRN>
+</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"#;
+    let path = write_temp("ofx_override.ofx", ofx_content);
+    let records = ofx::parse_with_currency(&path, "EUR").unwrap();
+    assert_eq!(records[0].currency, "EUR");
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn ledger_parsing_with_currency_override() {
+    let ledger_text = "2024-01-01 Coffee\n    expenses:food  5.00 USD\n    cash\n";
+    let path = write_temp("ledger_override.ledger", ledger_text);
+    let records = ledger::parse_with_currency(&path, "EUR").unwrap();
+    assert_eq!(records[0].currency, "EUR");
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn json_parsing_with_currency_override() {
+    let ledger_text = "2024-01-01 Coffee\n    expenses:food  5.00 USD\n    cash\n";
+    let lpath = write_temp("json_from_ledger.ledger", ledger_text);
+    let records = ledger::parse(&lpath).unwrap();
+    let jpath = write_temp("json_override.json", "");
+    json::export(&jpath, &records).unwrap();
+    let loaded = json::parse_with_currency(&jpath, "EUR").unwrap();
+    assert_eq!(loaded[0].currency, "EUR");
+    let _ = std::fs::remove_file(lpath);
+    let _ = std::fs::remove_file(jpath);
+}
+
+#[test]
 fn ledger_and_json_roundtrip() {
     let ledger_text = "2024-01-01 Coffee\n    expenses:food  5.00 USD\n    cash\n";
     let lpath = write_temp("test.ledger", ledger_text);

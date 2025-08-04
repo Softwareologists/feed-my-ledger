@@ -414,8 +414,7 @@ fn import_with_progress(
         })
         .ok_or_else(|| "could not determine file format".to_string())?;
     let mapping = mapping.into_mapping();
-    let currency_clone = currency.clone();
-    let mut records = match fmt.to_lowercase().as_str() {
+    let records = match fmt.to_lowercase().as_str() {
         "csv" => {
             if let Some(cur) = currency.as_deref() {
                 if let Some(ref map) = mapping {
@@ -429,18 +428,24 @@ fn import_with_progress(
                 import::csv::parse(file)
             }
         }
-        "qif" => import::qif::parse(file),
-        "ofx" => import::ofx::parse(file),
-        "ledger" => import::ledger::parse(file),
-        "json" => import::json::parse(file),
+        "qif" => match currency.as_deref() {
+            Some(cur) => import::qif::parse_with_currency(file, cur),
+            None => import::qif::parse(file),
+        },
+        "ofx" => match currency.as_deref() {
+            Some(cur) => import::ofx::parse_with_currency(file, cur),
+            None => import::ofx::parse(file),
+        },
+        "ledger" => match currency.as_deref() {
+            Some(cur) => import::ledger::parse_with_currency(file, cur),
+            None => import::ledger::parse(file),
+        },
+        "json" => match currency.as_deref() {
+            Some(cur) => import::json::parse_with_currency(file, cur),
+            None => import::json::parse(file),
+        },
         other => return Err(format!("unsupported format: {other}").into()),
     }?;
-
-    if let Some(cur) = currency_clone {
-        for rec in &mut records {
-            rec.currency = cur.clone();
-        }
-    }
 
     let pb = indicatif::ProgressBar::new(records.len() as u64);
     for rec in records {
