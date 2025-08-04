@@ -116,7 +116,7 @@ async fn share_sheet_propagates_failure() {
 #[tokio::test]
 async fn append_rows_insert_option() {
     use serde_json::json;
-    use wiremock::matchers::{method, path, query_param};
+    use wiremock::matchers::{body_json, method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let server = MockServer::start().await;
@@ -133,6 +133,10 @@ async fn append_rows_insert_option() {
         .and(path("/spreadsheets/sheet123/values/Ledger:append"))
         .and(query_param("valueInputOption", "USER_ENTERED"))
         .and(query_param("insertDataOption", "INSERT_ROWS"))
+        .and(body_json(json!({
+            "majorDimension": "ROWS",
+            "values": [["a"], ["b"]],
+        })))
         .respond_with(ResponseTemplate::new(200))
         .expect(1)
         .mount(&server)
