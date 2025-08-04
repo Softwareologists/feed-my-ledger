@@ -1,6 +1,7 @@
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
 use csv::{ReaderBuilder, WriterBuilder};
 use std::path::PathBuf;
+use tracing::{debug, info};
 
 /// Adapter that stores spreadsheet data in local CSV files.
 pub struct FileAdapter {
@@ -38,6 +39,7 @@ impl CloudSpreadsheetService for FileAdapter {
         self.next_id += 1;
         let path = self.sheet_path(&id);
         std::fs::File::create(&path).map_err(|e| SpreadsheetError::Permanent(e.to_string()))?;
+        info!(id, "Created local sheet");
         Ok(id)
     }
 
@@ -54,6 +56,7 @@ impl CloudSpreadsheetService for FileAdapter {
         if !path.exists() {
             return Err(SpreadsheetError::SheetNotFound);
         }
+        debug!(sheet_id, rows = rows.len(), "Appending rows to sheet");
         let file = std::fs::OpenOptions::new()
             .append(true)
             .open(&path)
@@ -72,6 +75,7 @@ impl CloudSpreadsheetService for FileAdapter {
         if !path.exists() {
             return Err(SpreadsheetError::SheetNotFound);
         }
+        debug!(sheet_id, index, "Reading row");
         let file =
             std::fs::File::open(&path).map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let mut rdr = ReaderBuilder::new().has_headers(false).from_reader(file);
@@ -89,6 +93,7 @@ impl CloudSpreadsheetService for FileAdapter {
         if !path.exists() {
             return Err(SpreadsheetError::SheetNotFound);
         }
+        debug!(sheet_id, "Listing rows");
         let file =
             std::fs::File::open(&path).map_err(|e| SpreadsheetError::Transient(e.to_string()))?;
         let mut rdr = ReaderBuilder::new().has_headers(false).from_reader(file);
@@ -103,6 +108,7 @@ impl CloudSpreadsheetService for FileAdapter {
     fn share_sheet(&self, sheet_id: &str, _email: &str) -> Result<(), SpreadsheetError> {
         let path = self.sheet_path(sheet_id);
         if path.exists() {
+            info!(sheet_id, "Sharing sheet locally");
             Ok(())
         } else {
             Err(SpreadsheetError::ShareFailed)
