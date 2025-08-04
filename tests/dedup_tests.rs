@@ -13,9 +13,20 @@ fn filter_new_records_skips_duplicates() {
     let signature = "";
 
     let header: Vec<String> = vec![
-        "id", "timestamp", "description", "debit_account", "credit_account", "amount",
-        "currency", "reference_id", "external_reference", "tags", "splits",
-        "transaction_description", "hash",
+        "id",
+        "timestamp",
+        "description",
+        "debit_account",
+        "credit_account",
+        "amount",
+        "currency",
+        "reference_id",
+        "external_reference",
+        "tags",
+        "splits",
+        "transaction_description",
+        "transaction_date",
+        "hash",
     ]
     .into_iter()
     .map(String::from)

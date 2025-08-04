@@ -7,12 +7,12 @@ use chrono::NaiveDate;
 pub struct OfxImporter;
 
 impl OfxImporter {
-    fn parse_internal(path: &Path) -> Result<Vec<Record>, ImportError> {
+    fn parse_internal(path: &Path, date_format: Option<&str>) -> Result<Vec<Record>, ImportError> {
         let content = std::fs::read_to_string(path)?;
-        Self::parse_str(&content)
+        Self::parse_str(&content, date_format)
     }
 
-    pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
+    pub fn parse_str(input: &str, date_format: Option<&str>) -> Result<Vec<Record>, ImportError> {
         let mut records = Vec::new();
         let mut remaining = input;
         while let Some(start) = remaining.find("<STMTTRN>") {
@@ -32,7 +32,9 @@ impl OfxImporter {
                 let name = Self::extract_tag(block, "NAME").unwrap_or_default();
                 let date = Self::extract_tag(block, "DTPOSTED").and_then(|s| {
                     let s = s.trim();
-                    if s.len() >= 8 {
+                    if let Some(fmt) = date_format {
+                        NaiveDate::parse_from_str(s, fmt).ok()
+                    } else if s.len() >= 8 {
                         NaiveDate::parse_from_str(&s[..8], "%Y%m%d").ok()
                     } else {
                         None
@@ -73,7 +75,7 @@ impl OfxImporter {
 
 impl StatementImporter for OfxImporter {
     fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
-        Self::parse_internal(path)
+        Self::parse_internal(path, None)
     }
 }
 
@@ -81,8 +83,16 @@ pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     OfxImporter::parse(path)
 }
 
+pub fn parse_with_date_format(path: &Path, fmt: &str) -> Result<Vec<Record>, ImportError> {
+    OfxImporter::parse_internal(path, Some(fmt))
+}
+
 pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
-    OfxImporter::parse_str(input)
+    OfxImporter::parse_str(input, None)
+}
+
+pub fn parse_str_with_date_format(input: &str, fmt: &str) -> Result<Vec<Record>, ImportError> {
+    OfxImporter::parse_str(input, Some(fmt))
 }
 
 #[cfg(feature = "bank-api")]

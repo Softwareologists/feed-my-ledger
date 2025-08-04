@@ -145,6 +145,14 @@ $ cargo run --bin feed-my-ledger -- import --format csv --file transactions.csv 
 ```
 All imported rows will use the supplied currency.
 
+For QIF or OFX files with non-standard transaction date formats, provide a custom
+`--date-format`:
+
+```bash
+$ cargo run --bin feed-my-ledger -- import --format qif --file statement.qif \
+    --date-format "%Y/%m/%d"
+```
+
 Ledger text and JSON formats can also be imported:
 
 ```bash

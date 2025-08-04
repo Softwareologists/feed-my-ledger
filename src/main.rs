@@ -216,6 +216,8 @@ enum Commands {
         format: Option<String>,
         #[arg(long)]
         currency: Option<String>,
+        #[arg(long)]
+        date_format: Option<String>,
         #[command(flatten)]
         mapping: CsvMapArgs,
     },
@@ -405,6 +407,7 @@ async fn adapter_from_config(
     Ok(adapter)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn import_with_progress(
     adapter: &mut dyn CloudSpreadsheetService,
     sheet_id: &str,
@@ -413,6 +416,7 @@ fn import_with_progress(
     mapping: CsvMapArgs,
     currency: Option<String>,
     signature: &str,
+    date_format: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let fmt = format
         .or_else(|| {
@@ -423,6 +427,7 @@ fn import_with_progress(
         .ok_or_else(|| "could not determine file format".to_string())?;
     let mapping = mapping.into_mapping();
     let currency_clone = currency.clone();
+    let date_fmt = date_format.as_deref();
     let mut records = match fmt.to_lowercase().as_str() {
         "csv" => {
             if let Some(cur) = currency.as_deref() {
@@ -437,8 +442,20 @@ fn import_with_progress(
                 import::csv::parse(file)
             }
         }
-        "qif" => import::qif::parse(file),
-        "ofx" => import::ofx::parse(file),
+        "qif" => {
+            if let Some(fmt) = date_fmt {
+                import::qif::parse_with_date_format(file, fmt)
+            } else {
+                import::qif::parse(file)
+            }
+        }
+        "ofx" => {
+            if let Some(fmt) = date_fmt {
+                import::ofx::parse_with_date_format(file, fmt)
+            } else {
+                import::ofx::parse(file)
+            }
+        }
         "ledger" => import::ledger::parse(file),
         "json" => import::json::parse(file),
         other => return Err(format!("unsupported format: {other}").into()),
@@ -679,6 +696,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             file,
             format,
             currency,
+            date_format,
             mapping,
         } => {
             import_with_progress(
@@ -689,6 +707,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 mapping,
                 currency,
                 &signature,
+                date_format,
             )?;
         }
         Commands::Export { file, format } => {
