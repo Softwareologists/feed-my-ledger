@@ -129,6 +129,82 @@ async fn append_rows_insert_option() {
         .mount(&server)
         .await;
 
+    Mock::given(method("GET"))
+        .and(path("/spreadsheets/sheet123/values/Ledger"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/spreadsheets/sheet123/values/Ledger:append"))
+        .and(query_param("valueInputOption", "USER_ENTERED"))
+        .and(query_param("insertDataOption", "INSERT_ROWS"))
+        .and(body_json(json!({
+            "majorDimension": "ROWS",
+            "values": [[
+                "id",
+                "timestamp",
+                "description",
+                "debit_account",
+                "credit_account",
+                "amount",
+                "currency",
+                "reference_id",
+                "external_reference",
+                "tags",
+                "splits",
+                "transaction_description",
+                "hash"
+            ], ["a"], ["b"]],
+        })))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let adapter = GoogleSheets4Adapter::with_base_urls_and_sheet_name(
+        StaticToken,
+        format!("{}/", server.uri()),
+        format!("{}/", server.uri()),
+        "Ledger",
+    );
+
+    tokio::task::spawn_blocking(move || {
+        let mut adapter = adapter;
+        adapter
+            .append_rows("sheet123", vec![vec!["a".into()], vec!["b".into()]])
+            .unwrap();
+    })
+    .await
+    .unwrap();
+
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn append_rows_skips_header_when_not_empty() {
+    use serde_json::json;
+    use wiremock::matchers::{body_json, method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/spreadsheets/sheet123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "sheets": [{"properties": {"title": "Ledger"}}]
+        })))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/spreadsheets/sheet123/values/Ledger"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "values": [["existing"]]
+        })))
+        .mount(&server)
+        .await;
+
     Mock::given(method("POST"))
         .and(path("/spreadsheets/sheet123/values/Ledger:append"))
         .and(query_param("valueInputOption", "USER_ENTERED"))
