@@ -427,6 +427,7 @@ fn import_with_progress(
         .ok_or_else(|| "could not determine file format".to_string())?;
     let mapping = mapping.into_mapping();
     let date_fmt = date_format.as_deref();
+
     let records = match fmt.to_lowercase().as_str() {
         "csv" => {
             if let Some(cur) = currency.as_deref() {
@@ -441,6 +442,7 @@ fn import_with_progress(
                 import::csv::parse(file)
             }
         }
+
         "qif" => {
             let mut recs = if let Some(fmt) = date_fmt {
                 import::qif::parse_with_date_format(file, fmt)?
@@ -467,6 +469,7 @@ fn import_with_progress(
             }
             Ok(recs)
         }
+
         "ledger" => match currency.as_deref() {
             Some(cur) => import::ledger::parse_with_currency(file, cur),
             None => import::ledger::parse(file),
