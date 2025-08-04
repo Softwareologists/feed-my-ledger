@@ -34,7 +34,7 @@ impl OfxImporter {
                 } else {
                     ("bank".to_string(), "income".to_string())
                 };
-                let rec = Record::new(
+                let mut rec = Record::new(
                     name.trim().to_string(),
                     debit.parse().unwrap(),
                     credit.parse().unwrap(),
@@ -44,6 +44,7 @@ impl OfxImporter {
                     None,
                     vec![],
                 )?;
+                rec.transaction_description = Some(rec.description.clone());
                 records.push(rec);
             }
         }

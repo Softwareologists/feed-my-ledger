@@ -66,7 +66,7 @@ impl CsvImporter {
                 .unwrap_or_default()
                 .parse()
                 .map_err(|_| ImportError::Parse("invalid account".into()))?;
-            let rec = Record::new(
+            let mut rec = Record::new(
                 row.get(desc_idx).unwrap_or_default().to_string(),
                 debit_acc,
                 credit_acc,
@@ -76,6 +76,7 @@ impl CsvImporter {
                 None,
                 vec![],
             )?;
+            rec.transaction_description = Some(rec.description.clone());
             records.push(rec);
         }
         Ok(records)

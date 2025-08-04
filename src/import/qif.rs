@@ -43,7 +43,7 @@ impl QifImporter {
                     } else {
                         ("bank".to_string(), "income".to_string())
                     };
-                    let rec = Record::new(
+                    let mut rec = Record::new(
                         desc,
                         debit.parse().unwrap(),
                         credit.parse().unwrap(),
@@ -53,6 +53,7 @@ impl QifImporter {
                         None,
                         vec![],
                     )?;
+                    rec.transaction_description = Some(rec.description.clone());
                     records.push(rec);
                 }
                 amount = None;
