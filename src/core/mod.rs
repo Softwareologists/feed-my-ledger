@@ -87,6 +87,9 @@ pub struct Record {
     pub external_reference: Option<String>,
     /// Tags for categorizing the transaction.
     pub tags: Vec<String>,
+    /// Description from the original statement line, if available.
+    #[serde(default)]
+    pub transaction_description: Option<String>,
     /// Whether the record has been reconciled with a statement line.
     #[serde(default)]
     pub cleared: bool,
@@ -156,6 +159,7 @@ impl Record {
             reference_id,
             external_reference,
             tags,
+            transaction_description: None,
             cleared: false,
             splits: iter.collect(),
         })
@@ -202,6 +206,7 @@ impl Record {
             self.external_reference.clone().unwrap_or_default(),
             self.tags.join(","),
             splits,
+            self.transaction_description.clone().unwrap_or_default(),
         ]
     }
 

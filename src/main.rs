@@ -323,6 +323,7 @@ fn record_from_row(row: &[String]) -> Option<Record> {
 
     let amount = row[5].parse::<f64>().ok()?;
     let splits_col = if row.len() > 10 { &row[10] } else { "" };
+    let tx_desc = if row.len() > 11 { &row[11] } else { "" };
     Some(Record {
         id: Uuid::nil(),
         timestamp: Utc::now(),
@@ -345,6 +346,11 @@ fn record_from_row(row: &[String]) -> Option<Record> {
             Vec::new()
         } else {
             row[9].split(',').map(|s| s.to_string()).collect()
+        },
+        transaction_description: if tx_desc.is_empty() {
+            None
+        } else {
+            Some(tx_desc.to_string())
         },
         cleared: false,
         splits: if !splits_col.is_empty() {

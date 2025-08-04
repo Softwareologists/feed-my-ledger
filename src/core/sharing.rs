@@ -141,6 +141,7 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             row[9].split(',').map(|s| s.to_string()).collect()
         };
         let splits_col = if row.len() > 10 { &row[10] } else { "" };
+        let tx_desc = if row.len() > 11 { &row[11] } else { "" };
         let splits = if !splits_col.is_empty() {
             serde_json::from_str(splits_col)
                 .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?
@@ -163,6 +164,11 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             reference_id,
             external_reference,
             tags,
+            transaction_description: if tx_desc.is_empty() {
+                None
+            } else {
+                Some(tx_desc.to_string())
+            },
             cleared: false,
             splits,
         })
