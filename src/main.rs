@@ -4,16 +4,18 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use feed_my_ledger::cloud_adapters::{
-    CloudSpreadsheetService, FileAdapter, google_sheets4::GoogleSheets4Adapter,
+    CloudSpreadsheetService, FileAdapter, RetryingService, google_sheets4::GoogleSheets4Adapter,
 };
 use feed_my_ledger::core::{
     Account, Budget, BudgetBook, Ledger, Period, Posting, PriceDatabase, Query, Record,
     utils::generate_signature, verify_sheet,
 };
 use feed_my_ledger::import;
+use feed_my_ledger::import::dedup::filter_new_records;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::time::Duration;
 use tracing::{debug, info};
 use uuid::Uuid;
 use yup_oauth2::{self, InstalledFlowAuthenticator, InstalledFlowReturnMethod};
@@ -442,9 +444,10 @@ fn import_with_progress(
         }
     }
 
-    let pb = indicatif::ProgressBar::new(records.len() as u64);
-    for rec in records {
-        adapter.append_row(sheet_id, rec.to_row_hashed(signature))?;
+    let rows = filter_new_records(adapter, sheet_id, records, signature)?;
+    let pb = indicatif::ProgressBar::new(rows.len() as u64);
+    for row in rows {
+        adapter.append_row(sheet_id, row)?;
         pb.inc(1);
     }
     pb.finish_with_message("done");
@@ -487,9 +490,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut adapter: Box<dyn CloudSpreadsheetService> = if let Some(dir) = &local_dir {
         std::fs::create_dir_all(dir)?;
-        Box::new(FileAdapter::new(dir))
+        let inner = FileAdapter::new(dir);
+        Box::new(RetryingService::new(inner, 3, Duration::from_millis(500)))
     } else {
-        Box::new(rt.block_on(adapter_from_config(&cfg.google_sheets))?)
+        let inner = rt.block_on(adapter_from_config(&cfg.google_sheets))?;
+        Box::new(RetryingService::new(inner, 3, Duration::from_millis(500)))
     };
     let sheet_id = match &cfg.google_sheets.spreadsheet_id {
         Some(id) => id.clone(),
