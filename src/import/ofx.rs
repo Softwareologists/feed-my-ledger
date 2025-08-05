@@ -57,13 +57,12 @@ impl OfxImporter {
                     name.trim().to_string(),
                     debit.parse().unwrap(),
                     credit.parse().unwrap(),
-                    amount.abs(),
+                    amount,
                     "USD".into(),
                     None,
                     None,
                     vec![],
                 )?;
-                rec.transaction_description = Some(rec.description.clone());
                 rec.transaction_date = date;
                 records.push(rec);
             }

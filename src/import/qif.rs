@@ -56,32 +56,27 @@ impl QifImporter {
                 memo = Some(rest.trim().to_string());
             } else if line.starts_with('^') {
                 if let Some(a) = amount {
-                    let desc = match &memo {
-                        Some(m) if !m.is_empty() => m.clone(),
-                        _ => vendor.clone().unwrap_or_default(),
-                    };
                     let (debit, credit) = if a < 0.0 {
                         (
-                            "expenses".to_string(),
-                            vendor.or(Option::from("bank".to_string())).unwrap(),
+                            "bank".to_string(),
+                            vendor.or(Option::from("UNK".to_string())).unwrap(),
                         )
                     } else {
                         (
-                            vendor.or(Option::from("bank".to_string())).unwrap(),
-                            "income".to_string(),
+                            vendor.or(Option::from("UNK".to_string())).unwrap(),
+                            "bank".to_string(),
                         )
                     };
                     let mut rec = Record::new(
-                        desc,
+                        memo.or(Option::from("".to_string())).unwrap(),
                         debit.parse().unwrap(),
                         credit.parse().unwrap(),
-                        a.abs(),
+                        a,
                         "USD".into(),
                         None,
                         None,
                         vec![],
                     )?;
-                    rec.transaction_description = memo;
                     rec.transaction_date = date;
                     records.push(rec);
                 }
@@ -103,6 +98,15 @@ impl StatementImporter for QifImporter {
 
 pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     QifImporter::parse(path)
+}
+
+/// Parses an QIF file and sets all record currencies to the provided value.
+pub fn parse_with_currency(path: &Path, currency: &str) -> Result<Vec<Record>, ImportError> {
+    let mut records = QifImporter::parse(path)?;
+    for rec in &mut records {
+        rec.currency = currency.to_string();
+    }
+    Ok(records)
 }
 
 pub fn parse_with_date_format(path: &Path, fmt: &str) -> Result<Vec<Record>, ImportError> {

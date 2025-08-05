@@ -14,7 +14,7 @@ use std::pin::Pin;
 use tracing::{debug, info};
 use yup_oauth2::hyper_rustls::HttpsConnectorBuilder;
 
-const HEADER_ROW: [&str; 14] = [
+const HEADER_ROW: [&str; 13] = [
     "id",
     "timestamp",
     "description",
@@ -26,7 +26,6 @@ const HEADER_ROW: [&str; 14] = [
     "external_reference",
     "tags",
     "splits",
-    "transaction_description",
     "transaction_date",
     "hash",
 ];

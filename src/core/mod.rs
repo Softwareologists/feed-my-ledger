@@ -38,7 +38,7 @@ pub enum RecordError {
     /// The debit and credit accounts are identical.
     SameAccount,
     /// The amount provided is not positive.
-    NonPositiveAmount,
+    NonAmount,
     /// The provided currency code is not supported.
     UnsupportedCurrency(String),
 }
@@ -49,8 +49,8 @@ impl std::fmt::Display for RecordError {
             RecordError::SameAccount => {
                 write!(f, "debit and credit accounts cannot be identical")
             }
-            RecordError::NonPositiveAmount => {
-                write!(f, "transaction amount must be greater than zero")
+            RecordError::NonAmount => {
+                write!(f, "transaction amount must be present")
             }
             RecordError::UnsupportedCurrency(code) => {
                 write!(f, "unsupported currency code: {code}")
@@ -87,9 +87,6 @@ pub struct Record {
     pub external_reference: Option<String>,
     /// Tags for categorizing the transaction.
     pub tags: Vec<String>,
-    /// Description from the original statement line, if available.
-    #[serde(default)]
-    pub transaction_description: Option<String>,
     /// Date from the original statement line, if available.
     #[serde(default)]
     pub transaction_date: Option<DateTime<Local>>,
@@ -136,7 +133,7 @@ impl Record {
         tags: Vec<String>,
     ) -> Result<Self, RecordError> {
         if postings.is_empty() {
-            return Err(RecordError::NonPositiveAmount);
+            return Err(RecordError::NonAmount);
         }
         if Currency::from_code(&currency).is_none() {
             return Err(RecordError::UnsupportedCurrency(currency));
@@ -144,9 +141,6 @@ impl Record {
         for p in &postings {
             if p.debit_account == p.credit_account {
                 return Err(RecordError::SameAccount);
-            }
-            if p.amount <= 0.0 {
-                return Err(RecordError::NonPositiveAmount);
             }
         }
         let mut iter = postings.into_iter();
@@ -162,7 +156,6 @@ impl Record {
             reference_id,
             external_reference,
             tags,
-            transaction_description: None,
             transaction_date: None,
             cleared: false,
             splits: iter.collect(),
@@ -210,7 +203,6 @@ impl Record {
             self.external_reference.clone().unwrap_or_default(),
             self.tags.join(","),
             splits,
-            self.transaction_description.clone().unwrap_or_default(),
             self.transaction_date
                 .map(|d| d.format("%Y-%m-%d").to_string())
                 .unwrap_or_default(),
@@ -224,7 +216,7 @@ impl Record {
     /// externally.
     pub fn to_row_hashed(&self, signature: &str) -> Vec<String> {
         let mut row = self.to_row();
-        let hash = crate::core::utils::hash_row(&row, signature);
+        let hash = utils::hash_row(&row, signature);
         row.push(hash);
         row
     }

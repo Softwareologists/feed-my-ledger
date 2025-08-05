@@ -45,7 +45,7 @@ impl LedgerImporter {
                 .trim()
                 .parse()
                 .map_err(|_| ImportError::Parse("invalid account".into()))?;
-            let mut rec = Record::new(
+            let rec = Record::new(
                 description,
                 debit_account,
                 credit_account,
@@ -55,7 +55,6 @@ impl LedgerImporter {
                 None,
                 vec![],
             )?;
-            rec.transaction_description = Some(rec.description.clone());
             records.push(rec);
             while let Some(l) = lines.peek() {
                 if l.trim().is_empty() {

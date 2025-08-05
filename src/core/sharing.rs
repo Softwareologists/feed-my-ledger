@@ -141,7 +141,6 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             row[9].split(',').map(|s| s.to_string()).collect()
         };
         let splits_col = if row.len() > 10 { &row[10] } else { "" };
-        let tx_desc = if row.len() > 11 { &row[11] } else { "" };
         let tx_date_str = if row.len() > 12 { &row[12] } else { "" };
         let splits = if !splits_col.is_empty() {
             serde_json::from_str(splits_col)
@@ -184,11 +183,6 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
             reference_id,
             external_reference,
             tags,
-            transaction_description: if tx_desc.is_empty() {
-                None
-            } else {
-                Some(tx_desc.to_string())
-            },
             transaction_date,
             cleared: false,
             splits,

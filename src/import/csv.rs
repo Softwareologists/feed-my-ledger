@@ -80,7 +80,7 @@ impl CsvImporter {
                 Some(idx) => row.get(idx).unwrap_or_default().to_string(),
                 None => currency.unwrap().to_string(),
             };
-            let mut rec = Record::new(
+            let rec = Record::new(
                 row.get(desc_idx).unwrap_or_default().to_string(),
                 debit_acc,
                 credit_acc,
@@ -90,7 +90,6 @@ impl CsvImporter {
                 None,
                 vec![],
             )?;
-            rec.transaction_description = Some(rec.description.clone());
             records.push(rec);
         }
         Ok(records)

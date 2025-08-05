@@ -215,35 +215,6 @@ fn record_creation_rejects_identical_accounts() {
 }
 
 #[test]
-fn record_creation_rejects_nonpositive_amounts() {
-    let zero_err = Record::new(
-        "zero".into(),
-        "cash".parse().unwrap(),
-        "revenue".parse().unwrap(),
-        0.0,
-        "USD".into(),
-        None,
-        None,
-        vec![],
-    )
-    .unwrap_err();
-    assert_eq!(zero_err, RecordError::NonPositiveAmount);
-
-    let negative_err = Record::new(
-        "neg".into(),
-        "cash".parse().unwrap(),
-        "revenue".parse().unwrap(),
-        -1.0,
-        "USD".into(),
-        None,
-        None,
-        vec![],
-    )
-    .unwrap_err();
-    assert_eq!(negative_err, RecordError::NonPositiveAmount);
-}
-
-#[test]
 fn record_creation_validates_currency() {
     let valid = Record::new(
         "ok".into(),

@@ -12,13 +12,8 @@ impl JsonImporter {
     }
 
     pub fn parse_str(input: &str) -> Result<Vec<Record>, ImportError> {
-        let mut records: Vec<Record> =
+        let records: Vec<Record> =
             serde_json::from_str(input).map_err(|e| ImportError::Parse(e.to_string()))?;
-        for rec in &mut records {
-            if rec.transaction_description.is_none() {
-                rec.transaction_description = Some(rec.description.clone());
-            }
-        }
         Ok(records)
     }
 
