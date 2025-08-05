@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use chrono::Utc;
+use chrono::{Local, TimeZone, Utc};
 use clap::{Args, Parser, Subcommand};
 use feed_my_ledger::cloud_adapters::{
     CloudSpreadsheetService, FileAdapter, RetryingService, SpreadsheetError,
@@ -367,7 +367,11 @@ fn record_from_row(row: &[String]) -> Option<Record> {
         transaction_date: if tx_date_str.is_empty() {
             None
         } else {
-            chrono::NaiveDate::parse_from_str(tx_date_str, "%Y-%m-%d").ok()
+            let naive_date = chrono::NaiveDate::parse_from_str(tx_date_str, "%Y-%m-%d").ok();
+            let naive_datetime = naive_date?.and_hms_opt(0, 0, 0).unwrap();
+            let local_datetime = Local.from_local_datetime(&naive_datetime)
+                .single()?;
+            Some(local_datetime)
         },
         cleared: false,
         splits: if !splits_col.is_empty() {

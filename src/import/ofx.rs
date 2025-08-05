@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::{ImportError, StatementImporter};
 use crate::core::Record;
-use chrono::NaiveDate;
+use chrono::{Local, NaiveDate, TimeZone};
 
 pub struct OfxImporter;
 
@@ -33,9 +33,17 @@ impl OfxImporter {
                 let date = Self::extract_tag(block, "DTPOSTED").and_then(|s| {
                     let s = s.trim();
                     if let Some(fmt) = date_format {
-                        NaiveDate::parse_from_str(s, fmt).ok()
+                        let naive_date = NaiveDate::parse_from_str(s, fmt).ok();
+                        let naive_datetime = naive_date?.and_hms_opt(0, 0, 0).unwrap();
+                        let local_datetime = Local.from_local_datetime(&naive_datetime)
+                            .single()?;
+                        Some(local_datetime)
                     } else if s.len() >= 8 {
-                        NaiveDate::parse_from_str(&s[..8], "%Y%m%d").ok()
+                        let naive_date = NaiveDate::parse_from_str(&s[..8], "%Y%m%d").ok();
+                        let naive_datetime = naive_date?.and_hms_opt(0, 0, 0).unwrap();
+                        let local_datetime = Local.from_local_datetime(&naive_datetime)
+                            .single()?;
+                        Some(local_datetime)
                     } else {
                         None
                     }

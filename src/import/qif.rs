@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::{ImportError, StatementImporter};
 use crate::core::Record;
-use chrono::NaiveDate;
+use chrono::{DateTime, Local, NaiveDate, TimeZone};
 
 pub struct QifImporter;
 
@@ -17,7 +17,7 @@ impl QifImporter {
         let mut amount: Option<f64> = None;
         let mut memo: Option<String> = None;
         let mut vendor: Option<String> = None;
-        let mut date: Option<NaiveDate> = None;
+        let mut date: Option<DateTime<Local>> = None;
 
         for line in input.lines() {
             if line.starts_with('!') {
@@ -30,7 +30,18 @@ impl QifImporter {
                     NaiveDate::parse_from_str(s, "%Y-%m-%d")
                         .or_else(|_| NaiveDate::parse_from_str(s, "%m/%d/%Y"))
                 };
-                if let Ok(d) = parsed {
+
+                let final_result = parsed
+                    .map_err(|e| e.to_string()) // Unify error type to String for the next step
+                    .and_then(|naive_date| {
+                        // This closure runs only if parsing was successful.
+                        // It converts the NaiveDate to a DateTime<Local> at midnight.
+                        let naive_datetime = naive_date.and_hms_opt(0, 0, 0).unwrap();
+                        Local.from_local_datetime(&naive_datetime)
+                            .single()
+                            .ok_or_else(|| format!("Could not convert date '{}' to a unique local time", s))
+                    });
+                if let Ok(d) = final_result {
                     date = Some(d);
                 }
             } else if let Some(rest) = line.strip_prefix('T') {
@@ -92,14 +103,6 @@ impl StatementImporter for QifImporter {
 
 pub fn parse(path: &Path) -> Result<Vec<Record>, ImportError> {
     QifImporter::parse(path)
-}
-/// Parses a QIF file and sets all record currencies to the provided value.
-pub fn parse_with_currency(path: &Path, currency: &str) -> Result<Vec<Record>, ImportError> {
-    let mut records = QifImporter::parse(path)?;
-    for rec in &mut records {
-        rec.currency = currency.to_string();
-    }
-    Ok(records)
 }
 
 pub fn parse_with_date_format(path: &Path, fmt: &str) -> Result<Vec<Record>, ImportError> {

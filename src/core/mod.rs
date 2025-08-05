@@ -1,6 +1,6 @@
 //! Core logic for the append-only immutable database.
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Local, Utc};
 use iso_currency::Currency;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -92,7 +92,7 @@ pub struct Record {
     pub transaction_description: Option<String>,
     /// Date from the original statement line, if available.
     #[serde(default)]
-    pub transaction_date: Option<NaiveDate>,
+    pub transaction_date: Option<DateTime<Local>>,
     /// Whether the record has been reconciled with a statement line.
     #[serde(default)]
     pub cleared: bool,
@@ -212,7 +212,7 @@ impl Record {
             splits,
             self.transaction_description.clone().unwrap_or_default(),
             self.transaction_date
-                .map(|d| d.to_string())
+                .map(|d| d.format("%Y-%m-%d").to_string())
                 .unwrap_or_default(),
         ]
     }

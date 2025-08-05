@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
-
+use chrono::{Local, NaiveDate, TimeZone};
 use uuid::Uuid;
 
 use crate::cloud_adapters::{CloudSpreadsheetService, SpreadsheetError};
@@ -152,10 +152,21 @@ impl<S: CloudSpreadsheetService> SharedLedger<S> {
         let transaction_date = if tx_date_str.is_empty() {
             None
         } else {
-            Some(
-                chrono::NaiveDate::parse_from_str(tx_date_str, "%Y-%m-%d")
-                    .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?,
-            )
+            let naive_date = NaiveDate::parse_from_str(tx_date_str, "%Y-%m-%d")
+                .map_err(|e| SpreadsheetError::Permanent(e.to_string()))?;
+
+            let naive_datetime = naive_date.and_hms_opt(0, 0, 0).unwrap();
+
+            let local_datetime = Local.from_local_datetime(&naive_datetime)
+                .single() // We expect a unique mapping for midnight
+                .ok_or_else(|| {
+                    SpreadsheetError::Permanent(format!(
+                        "Could not convert date '{}' to a unique local time. It might be an invalid date during a DST transition.",
+                        tx_date_str
+                    ))
+                })?;
+
+            Some(local_datetime)
         };
 
         Ok(Record {
