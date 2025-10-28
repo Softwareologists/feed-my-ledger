@@ -60,7 +60,7 @@ jobs:
             echo "archive=dist/$name.tar.gz" >> "$GITHUB_OUTPUT"
             echo "checksum=dist/$name.tar.gz.sha256" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.target }}
           path: |
@@ -78,7 +78,7 @@ jobs:
           override: true
       - name: Build crate package
         run: cargo package --allow-dirty --no-verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: crate
           path: target/package/*.crate
